@@ -2,7 +2,7 @@ pub mod lex;
 pub mod parse;
 
 use crate::{
-  diagnostics::error::{Err, ParseErr},
+  diagnostics::error::{Error, ParseErr},
   diagnostics::Result,
   parsing::lex::Token,
   syntax::surface::Prog,
@@ -12,11 +12,11 @@ use std::{fs::read_to_string, path::Path};
 pub fn parse<P: AsRef<Path>>(path: P) -> Result<Prog> {
   let file_path = path.as_ref().to_string_lossy().to_string();
   let src = read_to_string(path).map_err(|_| {
-    Err::from(ParseErr::FileNotFound {
+    Error::from(ParseErr::FileNotFound {
       path: file_path.clone(),
     })
   })?;
-  let toks = lex::lex(src.as_str()).map_err(Err::from)?;
+  let toks = lex::lex(src.as_str()).map_err(Error::from)?;
   let indented = lex::process_indent(toks, |t| *t == Token::Where, |t| *t == Token::NewLine);
   let parsed =
     parse::parser::prog(&indented, &file_path).map_err(|e| ParseErr::UnexpectedToken {

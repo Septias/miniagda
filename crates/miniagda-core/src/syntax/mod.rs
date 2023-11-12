@@ -1,19 +1,42 @@
 pub mod core;
 pub mod surface;
-
 use crate::{
-  diagnostics::error::{Err, SurfaceToCoreErr},
   diagnostics::Result,
+  diagnostics::{
+    error::{Error, SurfaceToCoreErr},
+    span::Span,
+  },
 };
+use std::hash::Hash;
+
+#[derive(Clone, Debug)]
+pub struct Ident {
+  pub name: String,
+  pub span: Span,
+}
+
+impl PartialEq for Ident {
+  fn eq(&self, other: &Self) -> bool {
+    self.name == other.name
+  }
+}
+
+impl Eq for Ident {}
+
+impl Hash for Ident {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.name.hash(state);
+  }
+}
 
 #[derive(Clone, Debug, Default)]
 struct Env {
-  var: Vec<surface::Ident>,
-  glo: Vec<surface::Ident>,
+  var: Vec<Ident>,
+  glo: Vec<Ident>,
 }
 
 impl Env {
-  fn resolve(&self, var: &surface::Ident) -> Result<core::Tm> {
+  fn resolve(&self, var: &Ident) -> Result<core::Tm> {
     assert!(var.name != "_", "inference not yet implemented");
     match self.var.iter().position(|n| n.name == var.name) {
       Some(idx) => Ok(core::Tm::Var(core::TmVar {
@@ -23,12 +46,9 @@ impl Env {
       })),
       None => {
         if self.glo.contains(var) {
-          Ok(core::Tm::Glo(core::Ident {
-            name: var.name.clone(),
-            span: var.span.clone(),
-          }))
+          Ok(core::Tm::Glo(var.clone()))
         } else {
-          Err(Err::from(SurfaceToCoreErr::UnboundName {
+          Err(Error::from(SurfaceToCoreErr::UnboundName {
             name: var.name.clone(),
             span: var.span.clone(),
           }))
@@ -37,9 +57,9 @@ impl Env {
     }
   }
 
-  pub fn add_glo(&mut self, x: &surface::Ident) -> Result<()> {
+  pub fn add_glo(&mut self, x: &Ident) -> Result<()> {
     if self.glo.contains(x) {
-      return Err(Err::from(SurfaceToCoreErr::GlobalExists {
+      return Err(Error::from(SurfaceToCoreErr::GlobalExists {
         name: x.name.clone(),
         span: x.span.clone(),
       }));
@@ -48,7 +68,7 @@ impl Env {
     Ok(())
   }
 
-  pub fn add_var(&mut self, x: &surface::Ident) {
+  pub fn add_var(&mut self, x: &Ident) {
     if x.name == "_" {
       return;
     }
@@ -101,10 +121,7 @@ fn surf_to_core_data(data: &surface::Data, env: &mut Env) -> Result<core::Data> 
     .collect::<Result<Vec<_>>>()?;
 
   Ok(core::Data {
-    ident: core::Ident {
-      name: data.ident.name.clone(),
-      span: data.ident.span.clone(),
-    },
+    ident: data.ident.clone(),
     params,
     indices,
     level: data.level,
@@ -122,11 +139,8 @@ fn surf_to_core_ctx(ctx: &surface::Ctx, env: &mut Env) -> Result<core::Ctx> {
   let binds = ctx
     .ctx
     .iter()
-    .map(|(surface::Ident { name, span }, _)| core::Ident {
-      name: name.clone(),
-      span: span.clone(),
-    })
-    .collect::<Vec<core::Ident>>();
+    .map(|(i, _)| i.clone())
+    .collect::<Vec<Ident>>();
   ctx.ctx.iter().for_each(|(x, _)| env.add_var(x));
   Ok(core::Ctx {
     binds,
@@ -150,14 +164,8 @@ fn surf_to_core_cstr(cstr: &surface::Cstr, env: &mut Env) -> Result<core::Cstr> 
   env.add_glo(&cstr.ident)?;
 
   Ok(core::Cstr {
-    ident: core::Ident {
-      name: cstr.ident.name.clone(),
-      span: cstr.ident.span.clone(),
-    },
-    data: core::Ident {
-      name: cstr.data.name.clone(),
-      span: cstr.data.span.clone(),
-    },
+    ident: cstr.ident.clone(),
+    data: cstr.data.clone(),
     args: args?,
     params: params?,
     span: cstr.span.clone(),
@@ -177,11 +185,8 @@ fn surf_to_core_tel(tel: &surface::Ctx, env: &mut Env) -> Result<core::Tel> {
   let binds = tel
     .ctx
     .iter()
-    .map(|(surface::Ident { name, span }, _)| core::Ident {
-      name: name.clone(),
-      span: span.clone(),
-    })
-    .collect::<Vec<core::Ident>>();
+    .map(|(i, _)| i.clone())
+    .collect::<Vec<Ident>>();
   Ok(core::Tel {
     binds,
     tms,
@@ -206,10 +211,7 @@ fn surf_to_core_tm(tm: &surface::Tm, env: &mut Env) -> Result<core::Tm> {
       let mut nenv: Env = env.clone();
       nenv.add_var(ident);
       Ok(core::Tm::Abs(core::TmAbs {
-        ident: core::Ident {
-          name: ident.name.clone(),
-          span: ident.span.clone(),
-        },
+        ident: ident.clone(),
         ty: Box::new(surf_to_core_tm(ty, env)?),
         body: Box::new(surf_to_core_tm(body, &mut nenv)?),
         span: span.clone(),
@@ -224,10 +226,7 @@ fn surf_to_core_tm(tm: &surface::Tm, env: &mut Env) -> Result<core::Tm> {
       let mut nenv = env.clone();
       nenv.add_var(ident);
       Ok(core::Tm::All(core::TmAll {
-        ident: core::Ident {
-          name: ident.name.clone(),
-          span: ident.span.clone(),
-        },
+        ident: ident.clone(),
         dom: Box::new(surf_to_core_tm(dom, env)?),
         codom: Box::new(surf_to_core_tm(codom, &mut nenv)?),
         span: span.clone(),

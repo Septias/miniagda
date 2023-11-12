@@ -2,17 +2,13 @@ use std::{fmt::Display, ops::Add};
 
 use crate::diagnostics::span::Span;
 
+use super::Ident;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Idx(pub usize);
 
 #[derive(Clone, Copy, Debug)]
 pub struct Lvl(pub usize);
-
-#[derive(Clone, Debug)]
-pub struct Ident {
-  pub name: String,
-  pub span: Span,
-}
 
 #[derive(Clone, Debug)]
 pub struct TmVar {

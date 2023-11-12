@@ -2,11 +2,7 @@ use std::fmt::Display;
 
 use crate::diagnostics::span::Span;
 
-#[derive(Clone, Debug)]
-pub struct Ident {
-  pub name: String,
-  pub span: Span,
-}
+use super::Ident;
 
 #[derive(Clone, Debug)]
 pub struct TmApp {
@@ -88,11 +84,6 @@ pub struct Prog {
 // ------------------------------------------------------------------------------------------------
 // trait impls
 
-impl PartialEq for Ident {
-  fn eq(&self, other: &Self) -> bool {
-    self.name == other.name
-  }
-}
 
 impl Display for Tm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

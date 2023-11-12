@@ -1,10 +1,13 @@
+use crate::syntax::core::Tm;
+
 use super::span::Span;
 
 #[derive(Clone, Debug)]
-pub enum Err {
+pub enum Error {
   SurfaceToCore(SurfaceToCoreErr),
   Parse(ParseErr),
   Lex(LexErr),
+  Elab(ElabErr),
 }
 
 #[derive(Clone, Debug)]
@@ -27,11 +30,16 @@ pub enum LexErr {
   UnknownCharacter,
 }
 
+#[derive(Clone, Debug)]
+pub enum ElabErr {
+  ExpectedSet { span: Span, got: Tm },
+}
+
 macro_rules! impl_from_diag_enum {
   ($ident:path; $variant:ident) => {
-    impl From<$ident> for Err {
+    impl From<$ident> for Error {
       fn from(value: $ident) -> Self {
-        Err::$variant(value)
+        Error::$variant(value)
       }
     }
   };

@@ -1,4 +1,4 @@
-use crate::syntax::{core, surface};
+use crate::syntax::{core, surface, Ident};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Span {
@@ -20,7 +20,6 @@ impl Span {
 pub trait Spanned {
   fn span(&self) -> Span;
 }
-
 
 macro_rules! impl_spanned_struct {
   ($name:path) => {
@@ -46,7 +45,8 @@ macro_rules! impl_spanned_enum {
   };
 }
 
-impl_spanned_struct!(surface::Ident);
+impl_spanned_struct!(Ident);
+
 impl_spanned_struct!(surface::TmApp);
 impl_spanned_struct!(surface::TmAbs);
 impl_spanned_struct!(surface::TmAll);
@@ -58,7 +58,6 @@ impl_spanned_struct!(surface::Data);
 impl_spanned_enum!(surface::Decl; Data);
 impl_spanned_struct!(surface::Prog);
 
-impl_spanned_struct!(core::Ident);
 impl_spanned_struct!(core::TmVar);
 impl_spanned_struct!(core::TmApp);
 impl_spanned_struct!(core::TmAbs);
