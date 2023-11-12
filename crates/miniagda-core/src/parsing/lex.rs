@@ -3,7 +3,8 @@ use std::{fmt::Debug, ops::Range};
 use logos::{Lexer, Logos};
 use peg::{Parse, ParseElem, ParseSlice, RuleResult};
 
-use crate::diagnostic::LexErr;
+use crate::diagnostics::error::LexErr;
+
 
 #[derive(Logos, Clone, Copy, Debug, PartialEq)]
 #[logos(skip r"[ \t\f]+")]

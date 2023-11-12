@@ -1,6 +1,6 @@
 use super::lex::{Braced, SpannedToks, Token};
 use crate::syntax::surface::{self, Cstr, Ctx, Decl, Ident, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
-use crate::diagnostic::{Span, Spanned};
+use crate::diagnostics::span::{Span, Spanned};
 
 peg::parser! {
     pub grammar parser<'a>(file: &str) for SpannedToks<'a, Braced<Token<'a>>> {

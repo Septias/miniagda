@@ -1,6 +1,6 @@
 use std::{fmt::Display, ops::Add};
 
-use crate::diagnostic::Span;
+use crate::diagnostics::span::Span;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Idx(pub usize);

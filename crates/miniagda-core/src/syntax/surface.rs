@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::diagnostic::Span;
+use crate::diagnostics::span::Span;
 
 #[derive(Clone, Debug)]
 pub struct Ident {

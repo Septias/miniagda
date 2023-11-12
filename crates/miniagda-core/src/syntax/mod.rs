@@ -2,8 +2,8 @@ pub mod core;
 pub mod surface;
 
 use crate::{
-  diagnostic::{Diag, SurfaceToCoreErr},
-  Result,
+  diagnostics::error::{Err, SurfaceToCoreErr},
+  diagnostics::Result,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -28,7 +28,7 @@ impl Env {
             span: var.span.clone(),
           }))
         } else {
-          Err(Diag::from(SurfaceToCoreErr::UnboundName {
+          Err(Err::from(SurfaceToCoreErr::UnboundName {
             name: var.name.clone(),
             span: var.span.clone(),
           }))
@@ -39,7 +39,7 @@ impl Env {
 
   pub fn add_glo(&mut self, x: &surface::Ident) -> Result<()> {
     if self.glo.contains(x) {
-      return Err(Diag::from(SurfaceToCoreErr::GlobalExists {
+      return Err(Err::from(SurfaceToCoreErr::GlobalExists {
         name: x.name.clone(),
         span: x.span.clone(),
       }));

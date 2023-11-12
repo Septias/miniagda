@@ -1,7 +1,9 @@
-use crate::syntax::core::{
-  Env, Idx, Lvl, Tm, TmAbs, TmAll, TmApp, TmVar, Val, ValAbs, ValAll, ValApp, ValVar,
+use crate::{
+  diagnostics::span::Span,
+  syntax::core::{
+    Env, Idx, Lvl, Tm, TmAbs, TmAll, TmApp, TmVar, Val, ValAbs, ValAll, ValApp, ValVar,
+  },
 };
-use crate::diagnostic::Span;
 
 impl Lvl {
   fn as_idx(&self, lvl: Lvl) -> Idx {
@@ -75,7 +77,7 @@ fn quote(val: &Val, lvl: Lvl) -> Tm {
 fn env_resolve(env: &Env, x: &TmVar) -> Val {
   // if this panics, implementation is wrong, there are no runtime errors!
   match &env[x.idx.0] {
-    // copy name and span from actual val
+    // copy name and span from actual var
     Val::Var(ValVar { lvl, .. }) => Val::Var(ValVar {
       name: x.name.clone(),
       lvl: *lvl,
