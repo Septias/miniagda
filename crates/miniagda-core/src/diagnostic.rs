@@ -1,21 +1,10 @@
 use crate::ast::{core, surface};
 
 #[derive(Clone, Debug, PartialEq)]
-
 pub struct Span {
   pub file: String,
   pub start: usize,
   pub end: usize,
-}
-
-impl Span {
-  pub fn dummy(start: usize, end: usize) -> Self {
-    Self {
-      file: String::new(),
-      start,
-      end,
-    }
-  }
 }
 
 pub trait Spanned {

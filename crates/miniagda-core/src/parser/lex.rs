@@ -81,12 +81,12 @@ pub struct SpannedToks<'a, T: 'a> {
 }
 
 impl<'a, T: Debug> Debug for SpannedToks<'a, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for t in &self.toks {
-          write!(f, "{:?}\t  {:?}\n", t.span, t.val)?;
-        }
-        Ok(())
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    for t in &self.toks {
+      writeln!(f, "{:?}\t  {:?}", t.span, t.val)?;
     }
+    Ok(())
+  }
 }
 
 impl<'a, T> Parse for SpannedToks<'a, T> {

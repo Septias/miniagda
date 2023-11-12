@@ -52,7 +52,14 @@ impl Env {
     if x.name == "_" {
       return;
     }
-    self.var.push(x.clone());
+    self.var.insert(0, x.clone());
+  }
+
+  pub fn forget_vars<T>(&mut self, f: impl FnOnce(&mut Env) -> T) -> T {
+    let len = self.var.len();
+    let res = f(self);
+    self.var.drain(0..(self.var.len() - len));
+    res
   }
 }
 
@@ -85,9 +92,7 @@ fn surf_to_core_data(data: &surface::Data, env: &mut Env) -> Result<core::Data> 
 
   let params = surf_to_core_ctx(&data.params, env)?;
 
-  let len = env.var.len();
-  let indices = surf_to_core_tel(&data.indices, env)?;
-  env.var.truncate(len);
+  let indices = env.forget_vars(|env| surf_to_core_tel(&data.indices, env))?;
 
   let cstrs = data
     .cstrs
@@ -114,24 +119,34 @@ fn surf_to_core_ctx(ctx: &surface::Ctx, env: &mut Env) -> Result<core::Ctx> {
     .iter()
     .map(|(_, tm)| surf_to_core_tm(tm, env))
     .collect::<Result<Vec<_>>>()?;
+  let binds = ctx
+    .ctx
+    .iter()
+    .map(|(surface::Ident { name, span }, _)| core::Ident {
+      name: name.clone(),
+      span: span.clone(),
+    })
+    .collect::<Vec<core::Ident>>();
   ctx.ctx.iter().for_each(|(x, _)| env.add_var(x));
   Ok(core::Ctx {
+    binds,
     tms,
     span: ctx.span.clone(),
   })
 }
 
 fn surf_to_core_cstr(cstr: &surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
-  let len = env.var.len();
+  let (args, params) = env.forget_vars(|env| {
+    (
+      surf_to_core_tel(&cstr.args, env),
+      cstr
+        .params
+        .iter()
+        .map(|tm| surf_to_core_tm(tm, env))
+        .collect::<Result<Vec<_>>>(),
+    )
+  });
 
-  let args = surf_to_core_tel(&cstr.args, env)?;
-  let params = cstr
-    .params
-    .iter()
-    .map(|tm| surf_to_core_tm(tm, env))
-    .collect::<Result<Vec<_>>>()?;
-
-  env.var.truncate(len);
   env.add_glo(&cstr.ident)?;
 
   Ok(core::Cstr {
@@ -143,8 +158,8 @@ fn surf_to_core_cstr(cstr: &surface::Cstr, env: &mut Env) -> Result<core::Cstr> 
       name: cstr.data.name.clone(),
       span: cstr.data.span.clone(),
     },
-    args,
-    params,
+    args: args?,
+    params: params?,
     span: cstr.span.clone(),
   })
 }
@@ -159,8 +174,16 @@ fn surf_to_core_tel(tel: &surface::Ctx, env: &mut Env) -> Result<core::Tel> {
       tm
     })
     .collect::<Result<Vec<_>>>()?;
-
+  let binds = tel
+    .ctx
+    .iter()
+    .map(|(surface::Ident { name, span }, _)| core::Ident {
+      name: name.clone(),
+      span: span.clone(),
+    })
+    .collect::<Vec<core::Ident>>();
   Ok(core::Tel {
+    binds,
     tms,
     span: tel.span.clone(),
   })
@@ -180,7 +203,7 @@ fn surf_to_core_tm(tm: &surface::Tm, env: &mut Env) -> Result<core::Tm> {
       body,
       span,
     }) => {
-      let mut nenv = env.clone();
+      let mut nenv: Env = env.clone();
       nenv.add_var(ident);
       Ok(core::Tm::Abs(core::TmAbs {
         ident: core::Ident {

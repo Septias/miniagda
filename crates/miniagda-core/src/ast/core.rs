@@ -65,12 +65,14 @@ pub enum Tm {
 
 #[derive(Clone, Debug)]
 pub struct Ctx {
+  pub binds: Vec<Ident>,
   pub tms: Vec<Tm>,
   pub span: Span,
 }
 
 #[derive(Clone, Debug)]
 pub struct Tel {
+  pub binds: Vec<Ident>,
   pub tms: Vec<Tm>,
   pub span: Span,
 }
@@ -116,15 +118,15 @@ impl From<usize> for Idx {
 impl Display for Tm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Tm::Var(x) => write!(f, "{}", x.name),
+      Tm::Var(x) => write!(f, "{}{{{}}}", x.name, x.idx.0),
       Tm::Glo(x) => write!(f, "{}", x.name),
       Tm::App(TmApp { left, right, .. }) => write!(f, "({} {})", left, right),
       Tm::Abs(TmAbs {
         ident, ty, body, ..
-      }) => write!(f, "λ ({} : {}) → {}", ident.name, ty, body),
+      }) => write!(f, "(λ ({} : {}) → {})", ident.name, ty, body),
       Tm::All(TmAll {
         ident, dom, codom, ..
-      }) => write!(f, "∀ ({} : {}) → {}", ident.name, dom, codom),
+      }) => write!(f, "(∀ ({} : {}) → {})", ident.name, dom, codom),
       Tm::Set(TmSet { level, .. }) => {
         write!(
           f,
@@ -148,7 +150,8 @@ impl Display for Ctx {
       self
         .tms
         .iter()
-        .map(|tm| format!("(_ : {})", tm))
+        .enumerate()
+        .map(|(i, tm)| format!("({} : {})", self.binds[i].name, tm))
         .collect::<Vec<String>>()
         .join(" ")
     )
@@ -163,7 +166,8 @@ impl Display for Tel {
       self
         .tms
         .iter()
-        .map(|tm| format!("(_ : {})", tm))
+        .enumerate()
+        .map(|(i, tm)| format!("({} : {})", self.binds[i].name, tm))
         .collect::<Vec<String>>()
         .join(" ")
     )
