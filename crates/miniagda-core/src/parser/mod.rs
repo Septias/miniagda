@@ -16,11 +16,12 @@ pub fn parse<P: AsRef<Path>>(path: P) -> Result<Prog> {
       path: file_path.clone(),
     })
   })?;
-  let stoks = lex::lex(src.as_str()).map_err(Diag::from)?;
-  let stoks = lex::process_indent(stoks, |t| *t == Token::Where, |t| *t == Token::NewLine);
-  let parsed = parse::parser::prog(&stoks, &file_path).map_err(|e| ParseErr::UnexpectedToken {
-    span: e.location,
-    expected: e.expected.tokens().fold("".to_string(), |l, r| l + r),
-  })?;
+  let toks = lex::lex(src.as_str()).map_err(Diag::from)?;
+  let indented = lex::process_indent(toks, |t| *t == Token::Where, |t| *t == Token::NewLine);
+  let parsed =
+    parse::parser::prog(&indented, &file_path).map_err(|e| ParseErr::UnexpectedToken {
+      span: e.location,
+      expected: e.expected.to_string(),
+    })?;
   Ok(parsed)
 }

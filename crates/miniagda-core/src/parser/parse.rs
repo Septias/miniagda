@@ -2,36 +2,6 @@ use super::lex::{Braced, SpannedToks, Token};
 use crate::ast::surface::{self, Cstr, Ctx, Decl, Ident, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
 use crate::diagnostic::{Span, Spanned};
 
-fn unroll_app(app: Tm) -> Vec<Tm> {
-  match app {
-    Tm::App(TmApp { left, right, .. }) => {
-      let mut v = vec![*left];
-      v.extend(unroll_app(*right));
-      v
-    }
-    tm => vec![tm],
-  }
-}
-
-fn roll_app(left: Tm, rights: &mut Vec<Tm>) -> Tm {
-  match rights.pop() {
-    Some(right) => {
-      let left_span = left.span();
-      let end = right.span().end;
-      Tm::App(TmApp {
-        left: Box::new(roll_app(left, rights)),
-        right: Box::new(right),
-        span: Span {
-          file: left_span.file,
-          start: left_span.start,
-          end,
-        },
-      })
-    }
-    None => left,
-  }
-}
-
 peg::parser! {
     pub grammar parser<'a>(file: &str) for SpannedToks<'a, Braced<Token<'a>>> {
         use Token::*;
@@ -40,12 +10,12 @@ peg::parser! {
 
         rule id() -> Ident
             = start:position!() [Tok(Id(x))] end:position!() {
-              Ident { name: x.to_owned(), span: Span { file: file.to_string(), start, end } }
+              Ident { name: x.to_owned(), span: Span { file: file.to_string(), start, end }
+            }
         }
 
-        #[cache_left_rec]
         rule tm() -> Tm = precedence!{
-          e:(@) [Tok(ParenL)] tm:tm() [Tok(ParenR)] { tm }
+          [Tok(ParenL)] tm:tm() [Tok(ParenR)] { Tm::Brc(Box::new(tm)) }
           --
           start:position!() [Tok(Lambda)] bind:bind() [Tok(Arrow)] body:tm() end:position!() {
               Tm::Abs(TmAbs { ident: bind.0, ty: Box::new(bind.1), body: Box::new(body), span: Span { file: file.to_string(), start, end }  })
@@ -53,8 +23,9 @@ peg::parser! {
           start:position!()  [Tok(All)] bind:bind() [Tok(Arrow)] body:tm() end:position!() {
               Tm::All(TmAll { ident: bind.0, dom: Box::new(bind.1), codom: Box::new(body), span: Span { file: file.to_string(), start, end }  })
           }
-          left:tm() right:tm()+ end:position!() {
-            roll_app(left, &mut right.clone())
+          --
+          left:(@) right:tm() end:position!() {
+            reverse_app(left, right)
           }
           ident:id() {
             if ident.name.starts_with("Set") {
@@ -83,37 +54,41 @@ peg::parser! {
           }
 
         rule cstr_rhs(name: &str) -> (Ctx, Vec<Tm>)
-          = ctx:ctx1() [Tok(Arrow)] ident:id() tm:tm()? {
-            assert!(name == ident.name, "handle parsing errors");
-            (ctx, tm.map(unroll_app).unwrap_or_else(Vec::new))
+          = ctx:ctx1() [Tok(Arrow)] ident:id() tm:tm()? {?
+            if (name != ident.name) {
+              return Err("type of data type constructors are expected to end in data type itself")
+            }
+            Ok((ctx, tm.map(unroll_app).unwrap_or_else(Vec::new)))
           }
-          / pos:position!() ident:id() tm:tm()? {
-            assert!(name == ident.name, "handle parsing error");
-            (Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, tm.map(unroll_app).unwrap_or_else(Vec::new))
+          / pos:position!() ident:id() tm:tm()? {?
+            if (name != ident.name) {
+              return Err("type of data type constructors are expected to end in data type itself")
+            }
+            Ok((Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, tm.map(unroll_app).unwrap_or_else(Vec::new)))
           }
 
-      rule cstr(name : &str) -> Cstr
-        = start:position!() [Item] ident:id() [Tok(Colon)] rhs:cstr_rhs(name) end:position!() {
-          Cstr { ident, args: rhs.0, params: rhs.1, span: Span { file: file.to_string(), start, end } }
+      rule cstr(data : &Ident) -> Cstr
+        = start:position!() [Item] ident:id() [Tok(Colon)] rhs:cstr_rhs(&data.name) end:position!() {
+          Cstr { ident, data: data.clone(), args: rhs.0, params: rhs.1, span: Span { file: file.to_string(), start, end } }
         }
 
       rule indices_and_level() -> (Ctx, usize)
-        = ctx:ctx1() [Tok(Arrow)] tm:tm() {
+        = ctx:ctx1() [Tok(Arrow)] tm:tm() {?
           if let Tm::Set(TmSet { level, span }) = tm {
-            return (ctx, level)
+            return Ok((ctx, level))
           }
-          todo!("handle parsing error")
+          Err("indices of data type definitions are expected to end in `Set`")
         }
-        / pos:position!() tm:tm() {
+        / pos:position!() tm:tm() {?
           if let Tm::Set(TmSet { level, span }) = tm {
-            return (Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, level)
+            return Ok((Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, level))
           }
-          todo!("handle parsing error")
+          Err("indices of data type definitions are expected to end in `Set`")
         }
 
       rule data() -> surface::Data
         = start:position!() [Tok(Data)] ident:id() params:ctx() [Tok(Colon)] ial:indices_and_level() [Tok(Where)]
-          [Begin] cstrs:cstr(&ident.name)* [End] end:position!() {
+          [Begin] cstrs:cstr(&ident)* [End] end:position!() {
             surface::Data { ident, params, indices: ial.0, level: ial.1, cstrs, span: Span { file: file.to_string(), start, end } }
         }
 
@@ -123,8 +98,54 @@ peg::parser! {
       pub rule prog() -> Prog
        = start:position!() [Begin] decls:decl()*
           [Item] ident1:id() [Tok(Colon)] ty:tm() [Item] ident2:id() [Tok(Equals)] tm:tm() [End] end:position!() {
-            assert!(ident1.name == ident2.name, "handle parsing error");
+            assert!(ident1.name == ident2.name);
             Prog { decls, tm, ty, span: Span { file: file.to_string(), start, end } }
        }
     }
+}
+
+fn unroll_app(app: Tm) -> Vec<Tm> {
+  match app {
+    Tm::App(TmApp { left, right, .. }) => {
+      let mut v = unroll_app(*left);
+      v.push(*right);
+      v
+    }
+    tm => vec![tm],
+  }
+}
+
+fn reverse_app(left: Tm, right: Tm) -> Tm {
+  let left_span = left.span();
+  let right_span = right.span();
+  match right {
+    Tm::App(TmApp {
+      left: left1,
+      right: right1,
+      ..
+    }) => {
+      let left1_span = left1.span();
+      reverse_app(
+        Tm::App(TmApp {
+          left: Box::new(left),
+          right: left1,
+          span: Span {
+            file: left_span.file.clone(),
+            start: left_span.start,
+            end: left1_span.end,
+          },
+        }),
+        *right1,
+      )
+    }
+    tm => Tm::App(TmApp {
+      left: Box::new(left),
+      right: Box::new(tm),
+      span: Span {
+        file: left_span.file.clone(),
+        start: left_span.start,
+        end: right_span.end,
+      },
+    }),
+  }
 }

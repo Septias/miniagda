@@ -75,21 +75,18 @@ impl<T> Spanned<T> {
   }
 }
 
-#[derive(Debug)]
 pub struct SpannedToks<'a, T: 'a> {
   pub src: &'a str,
   pub toks: Vec<Spanned<T>>,
 }
 
-impl<'a, T: 'a> SpannedToks<'a, T> {
-  pub fn print_toks_debug(&self)
-  where
-    T: Debug,
-  {
-    for t in &self.toks {
-      println!("{:?}\t  {:?}", t.span, t.val);
+impl<'a, T: Debug> Debug for SpannedToks<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for t in &self.toks {
+          write!(f, "{:?}\t  {:?}\n", t.span, t.val)?;
+        }
+        Ok(())
     }
-  }
 }
 
 impl<'a, T> Parse for SpannedToks<'a, T> {

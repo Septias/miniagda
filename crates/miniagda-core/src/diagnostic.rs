@@ -92,7 +92,7 @@ impl_spanned_struct!(surface::TmApp);
 impl_spanned_struct!(surface::TmAbs);
 impl_spanned_struct!(surface::TmAll);
 impl_spanned_struct!(surface::TmSet);
-impl_spanned_enum!(surface::Tm; Var, App, Abs, All, Set);
+impl_spanned_enum!(surface::Tm; Var, App, Abs, All, Set, Brc);
 impl_spanned_struct!(surface::Ctx);
 impl_spanned_struct!(surface::Cstr);
 impl_spanned_struct!(surface::Data);

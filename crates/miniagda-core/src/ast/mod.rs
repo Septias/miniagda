@@ -139,6 +139,10 @@ fn surf_to_core_cstr(cstr: &surface::Cstr, env: &mut Env) -> Result<core::Cstr> 
       name: cstr.ident.name.clone(),
       span: cstr.ident.span.clone(),
     },
+    data: core::Ident {
+      name: cstr.data.name.clone(),
+      span: cstr.data.span.clone(),
+    },
     args,
     params,
     span: cstr.span.clone(),
@@ -170,7 +174,12 @@ fn surf_to_core_tm(tm: &surface::Tm, env: &mut Env) -> Result<core::Tm> {
       right: Box::new(surf_to_core_tm(right.as_ref(), env)?),
       span: span.clone(),
     })),
-    surface::Tm::Abs(surface::TmAbs { ident, ty, body, span }) => {
+    surface::Tm::Abs(surface::TmAbs {
+      ident,
+      ty,
+      body,
+      span,
+    }) => {
       let mut nenv = env.clone();
       nenv.add_var(ident);
       Ok(core::Tm::Abs(core::TmAbs {
@@ -205,5 +214,6 @@ fn surf_to_core_tm(tm: &surface::Tm, env: &mut Env) -> Result<core::Tm> {
       level: *level,
       span: span.clone(),
     })),
+    surface::Tm::Brc(tm) => surf_to_core_tm(tm, env),
   }
 }

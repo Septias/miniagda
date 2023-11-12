@@ -7,7 +7,7 @@ data N : Set where
 
 data Vec (A : Set) : (n : N) → Set where
   nil  : Vec A zero
-  cons : (n : N) (b : Vec A n) (c : A) → Vec A (suc n)
+  cons : (n : N) (_ : Vec A n) (_ : A) → Vec A (suc n)
 
 _ : ∀ (_ : N) → Set
-_ = λ (n : N) → Vec T n
+_ = λ (n : N) → Vec T n 
