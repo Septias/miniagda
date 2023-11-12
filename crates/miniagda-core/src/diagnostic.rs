@@ -1,13 +1,21 @@
-use std::path::PathBuf;
+use crate::ast::{core, surface};
 
-use crate::surface;
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 
 pub struct Span {
-  file: PathBuf,
-  start: usize,
-  end: usize,
+  pub file: String,
+  pub start: usize,
+  pub end: usize,
+}
+
+impl Span {
+  pub fn dummy(start: usize, end: usize) -> Self {
+    Self {
+      file: String::new(),
+      start,
+      end,
+    }
+  }
 }
 
 pub trait Spanned {
@@ -16,13 +24,29 @@ pub trait Spanned {
 
 #[derive(Clone, Debug)]
 pub enum Diag {
-  SurfaceToCore(SurfaceToCoreDiag),
+  SurfaceToCore(SurfaceToCoreErr),
+  Parse(ParseErr),
+  Lex(LexErr),
 }
 
 #[derive(Clone, Debug)]
-pub enum SurfaceToCoreDiag {
-  UnboundName { string: String, span: Span },
+pub enum SurfaceToCoreErr {
+  UnboundName { name: String, span: Span },
+  GlobalExists { name: String, span: Span },
   Internal { message: String },
+}
+
+#[derive(Clone, Debug)]
+pub enum ParseErr {
+  FileNotFound { path: String },
+  UnexpectedToken { span: usize, expected: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub enum LexErr {
+  Level,
+  #[default]
+  UnknownCharacter,
 }
 
 macro_rules! impl_from_diag_enum {
@@ -59,7 +83,9 @@ macro_rules! impl_spanned_enum {
   };
 }
 
-impl_from_diag_enum!(SurfaceToCoreDiag; SurfaceToCore);
+impl_from_diag_enum!(SurfaceToCoreErr; SurfaceToCore);
+impl_from_diag_enum!(LexErr; Lex);
+impl_from_diag_enum!(ParseErr; Parse);
 
 impl_spanned_struct!(surface::Ident);
 impl_spanned_struct!(surface::TmApp);
@@ -71,4 +97,19 @@ impl_spanned_struct!(surface::Ctx);
 impl_spanned_struct!(surface::Cstr);
 impl_spanned_struct!(surface::Data);
 impl_spanned_enum!(surface::Decl; Data);
-impl_spanned_struct!(surface::Program);
+impl_spanned_struct!(surface::Prog);
+
+impl_spanned_struct!(core::Ident);
+impl_spanned_struct!(core::TmVar);
+impl_spanned_struct!(core::TmGlo);
+impl_spanned_struct!(core::TmApp);
+impl_spanned_struct!(core::TmAbs);
+impl_spanned_struct!(core::TmAll);
+impl_spanned_struct!(core::TmSet);
+impl_spanned_enum!(core::Tm; Var, Glo, App, Abs, All, Set);
+impl_spanned_struct!(core::Ctx);
+impl_spanned_struct!(core::Tel);
+impl_spanned_struct!(core::Cstr);
+impl_spanned_struct!(core::Data);
+impl_spanned_enum!(core::Decl; Data);
+impl_spanned_struct!(core::Prog);

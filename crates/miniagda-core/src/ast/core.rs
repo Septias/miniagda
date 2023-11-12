@@ -1,6 +1,4 @@
-use std::rc::Rc;
-
-use crate::{context, diagnostic::Span};
+use crate::diagnostic::Span;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Idx(pub usize);
@@ -8,48 +6,49 @@ pub struct Idx(pub usize);
 #[derive(Clone, Debug)]
 pub struct Ident {
   pub name: String,
-  pub(crate) span: Span,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
 pub struct TmVar {
   pub name: String,
   pub idx: Idx,
-  pub(crate) span: Span,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
 pub struct TmGlo {
   pub name: String,
-  pub(crate) span: Span,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
 pub struct TmApp {
-  pub left: Rc<Tm>,
-  pub right: Rc<Tm>,
-  pub(crate) span: Span,
+  pub left: Box<Tm>,
+  pub right: Box<Tm>,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
 pub struct TmAbs {
-  pub name: String,
-  pub body: Rc<Tm>,
-  pub(crate) span: Span,
+  pub ident: Ident,
+  pub ty: Box<Tm>,
+  pub body: Box<Tm>,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
 pub struct TmAll {
-  pub name: String,
-  pub dom: Rc<Tm>,
-  pub codom: Rc<Tm>,
-  pub(crate) span: Span,
+  pub ident: Ident,
+  pub dom: Box<Tm>,
+  pub codom: Box<Tm>,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
 pub struct TmSet {
   pub level: usize,
-  pub(crate) span: Span,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
@@ -64,26 +63,32 @@ pub enum Tm {
 
 #[derive(Clone, Debug)]
 pub struct Ctx {
-  pub ctx: context::Ctx<Tm>,
-  pub(crate) span: Span,
+  pub tms: Vec<Tm>,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub struct Tel {
+  pub tms: Vec<Tm>,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
 pub struct Cstr {
-  pub name: Ident,
-  pub args: Ctx,
+  pub ident: Ident,
+  pub args: Tel,
   pub params: Vec<Tm>,
-  pub(crate) span: Span,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
 pub struct Data {
-  pub name: Ident,
+  pub ident: Ident,
   pub params: Ctx,
-  pub indices: Ctx,
+  pub indices: Tel,
   pub level: usize,
   pub cstrs: Vec<Cstr>,
-  pub(crate) span: Span,
+  pub span: Span,
 }
 
 #[derive(Clone, Debug)]
@@ -95,7 +100,8 @@ pub enum Decl {
 pub struct Prog {
   pub decls: Vec<Decl>,
   pub tm: Tm,
-  pub(crate) span: Span,
+  pub ty: Tm,
+  pub span: Span,
 }
 
 impl From<usize> for Idx {
