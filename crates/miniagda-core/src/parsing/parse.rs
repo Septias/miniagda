@@ -1,5 +1,5 @@
 use super::lex::{Braced, SpannedToks, Token};
-use crate::ast::surface::{self, Cstr, Ctx, Decl, Ident, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
+use crate::syntax::surface::{self, Cstr, Ctx, Decl, Ident, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
 use crate::diagnostic::{Span, Spanned};
 
 peg::parser! {
@@ -16,6 +16,7 @@ peg::parser! {
 
         rule tm() -> Tm = precedence!{
           [Tok(ParenL)] tm:tm() [Tok(ParenR)] { Tm::Brc(Box::new(tm)) }
+          [Tok(BraceL)] _:id() [Tok(Equals)] tm:tm() [Tok(BraceR)] { Tm::Brc(Box::new(tm)) }
           --
           start:position!() [Tok(Lambda)] bind:bind() [Tok(Arrow)] body:tm() end:position!() {
               Tm::Abs(TmAbs { ident: bind.0, ty: Box::new(bind.1), body: Box::new(body), span: Span { file: file.to_string(), start, end }  })
@@ -125,17 +126,15 @@ fn roll_app(left: Tm, right: Tm) -> Tm {
       left: left1,
       right: right1,
       ..
-    }) => {
-      Tm::App(TmApp {
-        left: Box::new(roll_app(left, *left1)),
-        right: right1,
-        span: Span {
-          file: left_span.file.to_string(),
-          start: left_span.start,
-          end: right_span.end,
-        },
-      })
-    }
+    }) => Tm::App(TmApp {
+      left: Box::new(roll_app(left, *left1)),
+      right: right1,
+      span: Span {
+        file: left_span.file.to_string(),
+        start: left_span.start,
+        end: right_span.end,
+      },
+    }),
     tm => Tm::App(TmApp {
       left: Box::new(left),
       right: Box::new(tm),

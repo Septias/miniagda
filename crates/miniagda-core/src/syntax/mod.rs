@@ -23,7 +23,7 @@ impl Env {
       })),
       None => {
         if self.glo.contains(var) {
-          Ok(core::Tm::Glo(core::TmGlo {
+          Ok(core::Tm::Glo(core::Ident {
             name: var.name.clone(),
             span: var.span.clone(),
           }))

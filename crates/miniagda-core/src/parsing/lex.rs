@@ -18,6 +18,10 @@ pub enum Token<'a> {
   ParenL,
   #[token(")")]
   ParenR,
+  #[token("{")]
+  BraceL,
+  #[token("}")]
+  BraceR,
   #[token(":")]
   Colon,
   #[token("→")]

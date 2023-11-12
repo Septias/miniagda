@@ -1,6 +1,6 @@
 use std::env;
 
-use miniagda_core::{ast::surface_to_core, parser::parse};
+use miniagda_core::{syntax::surface_to_core, parsing::parse};
 
 fn main() {
   let file_path: String = env::args().collect::<Vec<_>>()[1].clone();

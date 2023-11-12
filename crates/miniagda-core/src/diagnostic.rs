@@ -1,10 +1,20 @@
-use crate::ast::{core, surface};
+use crate::syntax::{core, surface};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Span {
   pub file: String,
   pub start: usize,
   pub end: usize,
+}
+
+impl Span {
+  pub fn dummy() -> Self {
+    Span {
+      file: "".to_owned(),
+      start: 0,
+      end: 0,
+    }
+  }
 }
 
 pub trait Spanned {
@@ -90,7 +100,6 @@ impl_spanned_struct!(surface::Prog);
 
 impl_spanned_struct!(core::Ident);
 impl_spanned_struct!(core::TmVar);
-impl_spanned_struct!(core::TmGlo);
 impl_spanned_struct!(core::TmApp);
 impl_spanned_struct!(core::TmAbs);
 impl_spanned_struct!(core::TmAll);

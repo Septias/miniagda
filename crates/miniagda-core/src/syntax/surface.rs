@@ -85,6 +85,9 @@ pub struct Prog {
   pub span: Span,
 }
 
+// ------------------------------------------------------------------------------------------------
+// trait impls
+
 impl PartialEq for Ident {
   fn eq(&self, other: &Self) -> bool {
     self.name == other.name

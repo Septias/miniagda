@@ -2,9 +2,9 @@ pub mod lex;
 pub mod parse;
 
 use crate::{
-  ast::surface::Prog,
+  syntax::surface::Prog,
   diagnostic::{Diag, ParseErr},
-  parser::lex::Token,
+  parsing::lex::Token,
   Result,
 };
 use std::{fs::read_to_string, path::Path};

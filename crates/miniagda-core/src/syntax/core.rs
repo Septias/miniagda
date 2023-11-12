@@ -1,9 +1,12 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::Add};
 
 use crate::diagnostic::Span;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Idx(pub usize);
+
+#[derive(Clone, Copy, Debug)]
+pub struct Lvl(pub usize);
 
 #[derive(Clone, Debug)]
 pub struct Ident {
@@ -15,12 +18,6 @@ pub struct Ident {
 pub struct TmVar {
   pub name: String,
   pub idx: Idx,
-  pub span: Span,
-}
-
-#[derive(Clone, Debug)]
-pub struct TmGlo {
-  pub name: String,
   pub span: Span,
 }
 
@@ -56,7 +53,7 @@ pub struct TmSet {
 #[derive(Clone, Debug)]
 pub enum Tm {
   Var(TmVar),
-  Glo(TmGlo),
+  Glo(Ident),
   App(TmApp),
   Abs(TmAbs),
   All(TmAll),
@@ -109,16 +106,124 @@ pub struct Prog {
   pub span: Span,
 }
 
+#[derive(Clone, Debug)]
+pub struct ValVar {
+  pub name: String,
+  pub lvl: Lvl,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub struct ValApp {
+  pub left: Box<Val>,
+  pub right: Box<Val>,
+  pub span: Span,
+}
+
+pub type Env = Vec<Val>;
+
+#[derive(Clone, Debug)]
+pub struct ValAbs {
+  pub env: Env,
+  pub ident: Ident,
+  pub ty: Box<Val>,
+  pub body: Tm,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub struct ValAll {
+  pub env: Env,
+  pub ident: Ident,
+  pub dom: Box<Val>,
+  pub codom: Tm,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum Val {
+  Var(ValVar),
+  Glo(Ident),
+  App(ValApp),
+  Abs(ValAbs),
+  All(ValAll),
+  Set(TmSet),
+}
+
+// ------------------------------------------------------------------------------------------------
+// trait impls
+
 impl From<usize> for Idx {
   fn from(value: usize) -> Self {
     Idx(value)
   }
 }
 
+impl From<usize> for Lvl {
+  fn from(value: usize) -> Self {
+    Lvl(value)
+  }
+}
+
+impl Add<usize> for Lvl {
+  type Output = Lvl;
+
+  fn add(self, rhs: usize) -> Self::Output {
+    Lvl(self.0 + rhs)
+  }
+}
+
+impl Display for Val {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Val::Var(ValVar { lvl, name, .. }) => write!(f, "{}{{{{{}}}}}", name, lvl.0),
+      Val::Glo(x) => write!(f, "{}", x.name),
+      Val::App(ValApp { left, right, .. }) => write!(f, "({} {})", left, right),
+      Val::Abs(ValAbs {
+        env,
+        ident,
+        ty,
+        body,
+        ..
+      }) => write!(
+        f,
+        "(λ[{}]({} : {}) → {})",
+        ident.name,
+        env
+          .iter()
+          .map(|val| format!("{}", val))
+          .collect::<Vec<String>>()
+          .join(", "),
+        ty,
+        body
+      ),
+      Val::All(ValAll {
+        env,
+        ident,
+        dom,
+        codom,
+        ..
+      }) => write!(
+        f,
+        "(∀[{}]({} : {}) → {})",
+        env
+          .iter()
+          .map(|val| format!("{}", val))
+          .collect::<Vec<String>>()
+          .join(", "),
+        ident.name,
+        dom,
+        codom
+      ),
+      Val::Set(_) => todo!(),
+    }
+  }
+}
+
 impl Display for Tm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Tm::Var(x) => write!(f, "{}{{{}}}", x.name, x.idx.0),
+      Tm::Var(TmVar { name, idx, span: _ }) => write!(f, "{}{{{}}}", name, idx.0),
       Tm::Glo(x) => write!(f, "{}", x.name),
       Tm::App(TmApp { left, right, .. }) => write!(f, "({} {})", left, right),
       Tm::Abs(TmAbs {
