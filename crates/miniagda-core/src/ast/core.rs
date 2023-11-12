@@ -234,13 +234,16 @@ impl Display for Prog {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
       f,
-      "{}",
+      "{}\n\n_ : {}\n_ = {}",
       self
         .decls
         .iter()
         .map(|decl| format!("{}", decl))
         .collect::<Vec<String>>()
-        .join("\n\n")
+        .join("\n\n"),
+      self.ty,
+      self.tm
     )
   }
 }
+

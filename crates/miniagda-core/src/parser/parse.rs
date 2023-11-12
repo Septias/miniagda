@@ -25,7 +25,10 @@ peg::parser! {
           }
           --
           left:(@) right:tm() end:position!() {
-            reverse_app(left, right)
+            println!("[{} @ {}]", left, right);
+            let left_span = left.span();
+            let right_span = right.span();
+            roll_app(left, right)
           }
           ident:id() {
             if ident.name.starts_with("Set") {
@@ -115,7 +118,7 @@ fn unroll_app(app: Tm) -> Vec<Tm> {
   }
 }
 
-fn reverse_app(left: Tm, right: Tm) -> Tm {
+fn roll_app(left: Tm, right: Tm) -> Tm {
   let left_span = left.span();
   let right_span = right.span();
   match right {
@@ -124,19 +127,15 @@ fn reverse_app(left: Tm, right: Tm) -> Tm {
       right: right1,
       ..
     }) => {
-      let left1_span = left1.span();
-      reverse_app(
-        Tm::App(TmApp {
-          left: Box::new(left),
-          right: left1,
-          span: Span {
-            file: left_span.file.clone(),
-            start: left_span.start,
-            end: left1_span.end,
-          },
-        }),
-        *right1,
-      )
+      Tm::App(TmApp {
+        left: Box::new(roll_app(left, *left1)),
+        right: right1,
+        span: Span {
+          file: left_span.file.to_string(),
+          start: left_span.start,
+          end: right_span.end,
+        },
+      })
     }
     tm => Tm::App(TmApp {
       left: Box::new(left),
