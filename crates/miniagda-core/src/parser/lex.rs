@@ -1,7 +1,5 @@
 use std::{fmt::Debug, ops::Range};
 
-use std::path::PathBuf;
-
 use logos::{Lexer, Logos};
 use peg::{Parse, ParseElem, ParseSlice, RuleResult};
 
@@ -39,7 +37,7 @@ pub enum Token<'a> {
 // -----------------------------------------------------------------------------------
 // thanks Hannes bb :*
 
-pub fn lex<'a>(src: &'a str) -> Result<SpannedToks<'a, Token<'a>>, LexErr> {
+pub fn lex(src: &str) -> Result<SpannedToks<'_, Token<'_>>, LexErr> {
   let lex: Lexer<Token> = Token::lexer(src);
   Ok(SpannedToks {
     src,

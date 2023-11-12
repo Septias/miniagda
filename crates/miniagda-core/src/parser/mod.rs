@@ -20,7 +20,7 @@ pub fn parse<P: AsRef<Path>>(path: P) -> Result<Prog> {
   let stoks = lex::process_indent(stoks, |t| *t == Token::Where, |t| *t == Token::NewLine);
   let parsed = parse::parser::prog(&stoks, &file_path).map_err(|e| ParseErr::UnexpectedToken {
     span: e.location,
-    expected: e.expected.tokens().into_iter().fold("".to_string(), |l, r| l + r),
+    expected: e.expected.tokens().fold("".to_string(), |l, r| l + r),
   })?;
   Ok(parsed)
 }
