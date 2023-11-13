@@ -42,11 +42,7 @@ pub fn elab(prog: Prog) -> Result<()> {
 }
 
 pub fn elab_prog(prog: Prog, env: &mut Env) -> Result<()> {
-  prog
-    .decls
-    .into_iter()
-    .map(|decl| elab_decl(decl, env))
-    .collect::<Result<Vec<_>>>()?;
+  prog.decls.into_iter().map(|decl| elab_decl(decl, env)).collect::<Result<Vec<_>>>()?;
   assert!(env.var_tys.is_empty());
   elab_tm_chk(prog.tm, prog.ty, env)
 }
@@ -88,16 +84,7 @@ fn tel_to_fn(tel: &Tel, end: Tm) -> Tm {
 }
 
 fn data_fn(data: &Data) -> Tm {
-  ctx_to_fn(
-    &data.params,
-    tel_to_fn(
-      &data.indices,
-      Tm::Set(TmSet {
-        level: data.level,
-        span: data.span(),
-      }),
-    ),
-  )
+  ctx_to_fn(&data.params, tel_to_fn(&data.indices, Tm::Set(TmSet { level: data.level, span: data.span() })))
 }
 
 fn elab_data(data: Data, env: &mut Env) -> Result<()> {
@@ -106,11 +93,7 @@ fn elab_data(data: Data, env: &mut Env) -> Result<()> {
   elab_ctx(data.params, env)?;
   env.forget(|env| elab_tel(data.indices, env, None))?;
   env.add_glo_ty(data.ident, as_fn);
-  data
-    .cstrs
-    .into_iter()
-    .map(|cstr| env.forget(|env| elab_cstr(cstr, &cstr_clone, env)))
-    .collect::<Result<Vec<_>>>()?;
+  data.cstrs.into_iter().map(|cstr| env.forget(|env| elab_cstr(cstr, &cstr_clone, env))).collect::<Result<Vec<_>>>()?;
   Ok(())
 }
 
@@ -144,10 +127,7 @@ fn expect_set(ty: Tm, max_lvl: Option<usize>) -> Result<()> {
     }
     Ok(())
   } else {
-    Err(Error::Elab(ElabErr::ExpectedSet {
-      span: ty.span(),
-      got: ty.clone(),
-    }))
+    Err(Error::Elab(ElabErr::ExpectedSet { span: ty.span(), got: ty.clone() }))
   }
 }
 
@@ -204,12 +184,7 @@ fn elab_tms_chk(tms: &[Tm], tel: &Tel, env: &mut Env) -> Result<()> {
 fn elab_tm_chk(tm: Tm, ty: Tm, env: &mut Env) -> Result<()> {
   match (nf(tm, &env.env), nf(ty, &env.env)) {
     (
-      Tm::Abs(TmAbs {
-        ident: ident1,
-        ty,
-        body,
-        span: span1,
-      }),
+      Tm::Abs(TmAbs { ident: ident1, ty, body, span: span1 }),
       Tm::All(TmAll {
         ident: ident2,
         dom,

@@ -84,28 +84,15 @@ pub struct Prog {
 // ------------------------------------------------------------------------------------------------
 // trait impls
 
-
 impl Display for Tm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Tm::Var(x) => write!(f, "{}", x.name),
       Tm::App(TmApp { left, right, .. }) => write!(f, "{} {}", left, right),
-      Tm::Abs(TmAbs {
-        ident, ty, body, ..
-      }) => write!(f, "λ ({} : {}) → {}", ident.name, ty, body),
-      Tm::All(TmAll {
-        ident, dom, codom, ..
-      }) => write!(f, "∀ ({} : {}) → {}", ident.name, dom, codom),
+      Tm::Abs(TmAbs { ident, ty, body, .. }) => write!(f, "λ ({} : {}) → {}", ident.name, ty, body),
+      Tm::All(TmAll { ident, dom, codom, .. }) => write!(f, "∀ ({} : {}) → {}", ident.name, dom, codom),
       Tm::Set(TmSet { level, .. }) => {
-        write!(
-          f,
-          "Set{}",
-          if *level != 0 {
-            level.to_string()
-          } else {
-            String::new()
-          }
-        )
+        write!(f, "Set{}", if *level != 0 { level.to_string() } else { String::new() })
       }
       Tm::Brc(tm) => write!(f, "({})", tm),
     }
@@ -114,16 +101,7 @@ impl Display for Tm {
 
 impl Display for Ctx {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(
-      f,
-      "{}",
-      self
-        .ctx
-        .iter()
-        .map(|(x, tm)| format!("({} : {})", x.name, tm))
-        .collect::<Vec<String>>()
-        .join(" ")
-    )
+    write!(f, "{}", self.ctx.iter().map(|(x, tm)| format!("({} : {})", x.name, tm)).collect::<Vec<String>>().join(" "))
   }
 }
 
@@ -134,18 +112,9 @@ impl Display for Cstr {
       "{} : {}{}{} {}",
       self.ident.name,
       self.args,
-      if self.args.ctx.is_empty() {
-        ""
-      } else {
-        " → "
-      },
+      if self.args.ctx.is_empty() { "" } else { " → " },
       self.data.name,
-      self
-        .params
-        .iter()
-        .map(|tm| format!("{}", tm))
-        .collect::<Vec<String>>()
-        .join(" ")
+      self.params.iter().map(|tm| format!("{}", tm)).collect::<Vec<String>>().join(" ")
     )
   }
 }
@@ -159,22 +128,9 @@ impl Display for Data {
       if self.params.ctx.is_empty() { "" } else { " " },
       self.params,
       self.indices,
-      if self.indices.ctx.is_empty() {
-        ""
-      } else {
-        " → "
-      },
-      if self.level != 0 {
-        self.level.to_string()
-      } else {
-        String::new()
-      },
-      self
-        .cstrs
-        .iter()
-        .map(|cstr| format!("  {}", cstr))
-        .collect::<Vec<String>>()
-        .join("\n")
+      if self.indices.ctx.is_empty() { "" } else { " → " },
+      if self.level != 0 { self.level.to_string() } else { String::new() },
+      self.cstrs.iter().map(|cstr| format!("  {}", cstr)).collect::<Vec<String>>().join("\n")
     )
   }
 }
@@ -192,12 +148,7 @@ impl Display for Prog {
     write!(
       f,
       "{}\n\n_ : {}\n_ = {}",
-      self
-        .decls
-        .iter()
-        .map(|decl| format!("{}", decl))
-        .collect::<Vec<String>>()
-        .join("\n\n"),
+      self.decls.iter().map(|decl| format!("{}", decl)).collect::<Vec<String>>().join("\n\n"),
       self.ty,
       self.tm
     )

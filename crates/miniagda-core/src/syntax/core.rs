@@ -173,42 +173,24 @@ impl Display for Val {
       Val::Var(ValVar { lvl, name, .. }) => write!(f, "{}{{{{{}}}}}", name, lvl.0),
       Val::Glo(x) => write!(f, "{}", x.name),
       Val::App(ValApp { left, right, .. }) => write!(f, "({} {})", left, right),
-      Val::Abs(ValAbs {
-        env,
-        ident,
-        ty,
-        body,
-        ..
-      }) => write!(
+      Val::Abs(ValAbs { env, ident, ty, body, .. }) => write!(
         f,
         "(λ[{}]({} : {}) → {})",
         ident.name,
         env
           .iter()
-          .map(|val| val
-            .clone()
-            .map(|val| format!("{}", val))
-            .unwrap_or("#".to_string()))
+          .map(|val| val.clone().map(|val| format!("{}", val)).unwrap_or("#".to_string()))
           .collect::<Vec<String>>()
           .join(", "),
         ty,
         body
       ),
-      Val::All(ValAll {
-        env,
-        ident,
-        dom,
-        codom,
-        ..
-      }) => write!(
+      Val::All(ValAll { env, ident, dom, codom, .. }) => write!(
         f,
         "(∀[{}]({} : {}) → {})",
         env
           .iter()
-          .map(|val| val
-            .clone()
-            .map(|val| format!("{}", val))
-            .unwrap_or("#".to_string()))
+          .map(|val| val.clone().map(|val| format!("{}", val)).unwrap_or("#".to_string()))
           .collect::<Vec<String>>()
           .join(", "),
         ident.name,
@@ -226,22 +208,10 @@ impl Display for Tm {
       Tm::Var(TmVar { name, idx, span: _ }) => write!(f, "{}{{{}}}", name, idx.0),
       Tm::Glo(x) => write!(f, "{}", x.name),
       Tm::App(TmApp { left, right, .. }) => write!(f, "({} {})", left, right),
-      Tm::Abs(TmAbs {
-        ident, ty, body, ..
-      }) => write!(f, "(λ ({} : {}) → {})", ident.name, ty, body),
-      Tm::All(TmAll {
-        ident, dom, codom, ..
-      }) => write!(f, "(∀ ({} : {}) → {})", ident.name, dom, codom),
+      Tm::Abs(TmAbs { ident, ty, body, .. }) => write!(f, "(λ ({} : {}) → {})", ident.name, ty, body),
+      Tm::All(TmAll { ident, dom, codom, .. }) => write!(f, "(∀ ({} : {}) → {})", ident.name, dom, codom),
       Tm::Set(TmSet { level, .. }) => {
-        write!(
-          f,
-          "Set{}",
-          if *level != 0 {
-            level.to_string()
-          } else {
-            String::new()
-          }
-        )
+        write!(f, "Set{}", if *level != 0 { level.to_string() } else { String::new() })
       }
     }
   }
@@ -286,18 +256,9 @@ impl Display for Cstr {
       "{} : {}{}{} {}",
       self.ident.name,
       self.args,
-      if self.args.tms.is_empty() {
-        ""
-      } else {
-        " → "
-      },
+      if self.args.tms.is_empty() { "" } else { " → " },
       self.data.name,
-      self
-        .params
-        .iter()
-        .map(|tm| format!("{}", tm))
-        .collect::<Vec<String>>()
-        .join(" ")
+      self.params.iter().map(|tm| format!("{}", tm)).collect::<Vec<String>>().join(" ")
     )
   }
 }
@@ -311,22 +272,9 @@ impl Display for Data {
       if self.params.tms.is_empty() { "" } else { " " },
       self.params,
       self.indices,
-      if self.indices.tms.is_empty() {
-        ""
-      } else {
-        " → "
-      },
-      if self.level != 0 {
-        self.level.to_string()
-      } else {
-        String::new()
-      },
-      self
-        .cstrs
-        .iter()
-        .map(|cstr| format!("  {}", cstr))
-        .collect::<Vec<String>>()
-        .join("\n")
+      if self.indices.tms.is_empty() { "" } else { " → " },
+      if self.level != 0 { self.level.to_string() } else { String::new() },
+      self.cstrs.iter().map(|cstr| format!("  {}", cstr)).collect::<Vec<String>>().join("\n")
     )
   }
 }
@@ -344,12 +292,7 @@ impl Display for Prog {
     write!(
       f,
       "{}\n\n_ : {}\n_ = {}",
-      self
-        .decls
-        .iter()
-        .map(|decl| format!("{}", decl))
-        .collect::<Vec<String>>()
-        .join("\n\n"),
+      self.decls.iter().map(|decl| format!("{}", decl)).collect::<Vec<String>>().join("\n\n"),
       self.ty,
       self.tm
     )

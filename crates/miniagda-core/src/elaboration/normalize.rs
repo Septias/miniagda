@@ -42,13 +42,7 @@ fn quote(val: Val, lvl: Lvl) -> Tm {
       right: Box::new(quote(*right, lvl)),
       span: span.clone(),
     }),
-    Val::Abs(ValAbs {
-      env,
-      ident,
-      ty,
-      body,
-      span,
-    }) => {
+    Val::Abs(ValAbs { env, ident, ty, body, span }) => {
       let mut nenv = env.clone();
       nenv.push(Some(Val::Var(ValVar::from_lvl(lvl))));
       Tm::Abs(TmAbs {
@@ -58,13 +52,7 @@ fn quote(val: Val, lvl: Lvl) -> Tm {
         span: span.clone(),
       })
     }
-    Val::All(ValAll {
-      env,
-      ident,
-      dom,
-      codom,
-      span,
-    }) => {
+    Val::All(ValAll { env, ident, dom, codom, span }) => {
       let mut nenv = env.clone();
       nenv.push(Some(Val::Var(ValVar::from_lvl(lvl))));
       Tm::All(TmAll {
@@ -112,24 +100,14 @@ pub fn eval(tm: Tm, env: &[Option<Val>]) -> Val {
         span: span.clone(),
       }),
     },
-    Tm::Abs(TmAbs {
-      ident,
-      ty,
-      body,
-      span,
-    }) => Val::Abs(ValAbs {
+    Tm::Abs(TmAbs { ident, ty, body, span }) => Val::Abs(ValAbs {
       env: env.to_vec(),
       ident: ident.clone(),
       ty: Box::new(eval(*ty, env)),
       body: *body.clone(),
       span: span.clone(),
     }),
-    Tm::All(TmAll {
-      ident,
-      dom,
-      codom,
-      span,
-    }) => Val::All(ValAll {
+    Tm::All(TmAll { ident, dom, codom, span }) => Val::All(ValAll {
       env: env.to_vec(),
       ident: ident.clone(),
       dom: Box::new(eval(*dom, env)),

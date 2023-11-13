@@ -1,2 +1,2 @@
-pub mod normalize;
 pub mod elaborate;
+pub mod normalize;
