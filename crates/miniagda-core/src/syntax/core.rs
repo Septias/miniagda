@@ -4,10 +4,10 @@ use crate::diagnostics::span::Span;
 
 use super::Ident;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Idx(pub usize);
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct Lvl(pub usize);
 
 #[derive(Clone, Debug)]
@@ -116,11 +116,9 @@ pub struct ValApp {
   pub span: Span,
 }
 
-pub type Env = Vec<Val>;
-
 #[derive(Clone, Debug)]
 pub struct ValAbs {
-  pub env: Env,
+  pub env: Vec<Option<Val>>,
   pub ident: Ident,
   pub ty: Box<Val>,
   pub body: Tm,
@@ -129,7 +127,7 @@ pub struct ValAbs {
 
 #[derive(Clone, Debug)]
 pub struct ValAll {
-  pub env: Env,
+  pub env: Vec<Option<Val>>,
   pub ident: Ident,
   pub dom: Box<Val>,
   pub codom: Tm,
@@ -187,7 +185,10 @@ impl Display for Val {
         ident.name,
         env
           .iter()
-          .map(|val| format!("{}", val))
+          .map(|val| val
+            .clone()
+            .map(|val| format!("{}", val))
+            .unwrap_or("#".to_string()))
           .collect::<Vec<String>>()
           .join(", "),
         ty,
@@ -204,7 +205,10 @@ impl Display for Val {
         "(∀[{}]({} : {}) → {})",
         env
           .iter()
-          .map(|val| format!("{}", val))
+          .map(|val| val
+            .clone()
+            .map(|val| format!("{}", val))
+            .unwrap_or("#".to_string()))
           .collect::<Vec<String>>()
           .join(", "),
         ident.name,

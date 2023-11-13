@@ -33,6 +33,8 @@ pub enum LexErr {
 #[derive(Clone, Debug)]
 pub enum ElabErr {
   ExpectedSet { span: Span, got: Tm },
+  CstrLevelTooHigh { span: Span, max: usize },
+  ExpectedParam { span: Span, got: Tm },
 }
 
 macro_rules! impl_from_diag_enum {
@@ -48,3 +50,4 @@ macro_rules! impl_from_diag_enum {
 impl_from_diag_enum!(SurfaceToCoreErr; SurfaceToCore);
 impl_from_diag_enum!(LexErr; Lex);
 impl_from_diag_enum!(ParseErr; Parse);
+impl_from_diag_enum!(ElabErr; Elab);
