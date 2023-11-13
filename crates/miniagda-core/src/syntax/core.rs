@@ -1,4 +1,7 @@
-use std::{fmt::Display, ops::Add};
+use std::{
+  fmt::Display,
+  ops::{Add, AddAssign},
+};
 
 use crate::diagnostics::span::Span;
 
@@ -118,7 +121,7 @@ pub struct ValApp {
 
 #[derive(Clone, Debug)]
 pub struct ValAbs {
-  pub env: Vec<Option<Val>>,
+  pub env: Vec<Val>,
   pub ident: Ident,
   pub ty: Box<Val>,
   pub body: Tm,
@@ -127,7 +130,7 @@ pub struct ValAbs {
 
 #[derive(Clone, Debug)]
 pub struct ValAll {
-  pub env: Vec<Option<Val>>,
+  pub env: Vec<Val>,
   pub ident: Ident,
   pub dom: Box<Val>,
   pub codom: Tm,
@@ -167,6 +170,12 @@ impl Add<usize> for Lvl {
   }
 }
 
+impl AddAssign<usize> for Lvl {
+  fn add_assign(&mut self, rhs: usize) {
+    self.0 += rhs
+  }
+}
+
 impl Display for Val {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
@@ -177,22 +186,14 @@ impl Display for Val {
         f,
         "(λ[{}]({} : {}) → {})",
         ident.name,
-        env
-          .iter()
-          .map(|val| val.clone().map(|val| format!("{}", val)).unwrap_or("#".to_string()))
-          .collect::<Vec<String>>()
-          .join(", "),
+        env.iter().map(|val| format!("{}", val)).collect::<Vec<String>>().join(", "),
         ty,
         body
       ),
       Val::All(ValAll { env, ident, dom, codom, .. }) => write!(
         f,
         "(∀[{}]({} : {}) → {})",
-        env
-          .iter()
-          .map(|val| val.clone().map(|val| format!("{}", val)).unwrap_or("#".to_string()))
-          .collect::<Vec<String>>()
-          .join(", "),
+        env.iter().map(|val| format!("{}", val)).collect::<Vec<String>>().join(", "),
         ident.name,
         dom,
         codom

@@ -164,7 +164,7 @@ fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
       let mut nenv: Env = env.clone();
       nenv.add_var(ident.clone());
       core::Tm::Abs(core::TmAbs {
-        ident: ident,
+        ident,
         ty: Box::new(surf_to_core_tm(*ty, env)?),
         body: Box::new(surf_to_core_tm(*body, &mut nenv)?),
         span: span.clone(),
@@ -174,7 +174,7 @@ fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
       let mut nenv = env.clone();
       nenv.add_var(ident.clone());
       core::Tm::All(core::TmAll {
-        ident: ident,
+        ident,
         dom: Box::new(surf_to_core_tm(*dom, env)?),
         codom: Box::new(surf_to_core_tm(*codom, &mut nenv)?),
         span: span.clone(),

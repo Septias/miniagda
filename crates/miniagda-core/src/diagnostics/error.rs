@@ -35,6 +35,8 @@ pub enum ElabErr {
   ExpectedSet { span: Span, got: Tm },
   CstrLevelTooHigh { span: Span, max: usize },
   ExpectedParam { span: Span, got: Tm },
+  TypeMismatch { ty1: Tm, ty2: Tm },
+  FunctionTypeExpected { span: Span, got: Tm },
 }
 
 macro_rules! impl_from_diag_enum {
