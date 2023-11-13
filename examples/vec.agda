@@ -10,4 +10,4 @@ data Vec (A : Set) : (n : N) → Set where
   cons : (n : N) (_ : Vec A n) (_ : A) → Vec A (suc n)
 
 _ : Vec T (suc zero)
-_ = (λ (t1 : T) → λ (t2 : T) → cons {A = T} zero nil t1) tt tt
+_ = cons {A = T} zero nil tt

@@ -63,9 +63,6 @@ impl Env {
   }
 
   pub fn add_var(&mut self, x: Ident) {
-    if x.name == "_" {
-      return;
-    }
     self.var.insert(0, x);
   }
 

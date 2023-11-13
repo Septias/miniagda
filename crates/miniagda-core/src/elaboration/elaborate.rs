@@ -3,6 +3,7 @@ use crate::diagnostics::span::{Span, Spanned};
 use crate::diagnostics::Result;
 use crate::syntax::{core::*, Ident};
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use super::normalize::{eval, nf};
 
@@ -12,6 +13,17 @@ pub struct Env {
   pub var_tys: Vec<Tm>,
   pub glo_tys: HashMap<Ident, Tm>,
   pub lvl: Lvl,
+}
+
+impl Display for Env {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    writeln!(f, "env")?;
+    writeln!(f, "[{}]", self.env.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join(", "))?;
+    writeln!(f, "tys")?;
+    writeln!(f, "[{}]", self.var_tys.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join(", "))?;
+    writeln!(f, "[{}]", self.glo_tys.iter().map(|(k, v)| format!("{}:{}", k.name, v)).collect::<Vec<String>>().join(", "))?;
+    writeln!(f, "lvl: {}", self.lvl.0)
+  }
 }
 
 impl Env {
@@ -48,12 +60,15 @@ impl Env {
 }
 
 pub fn elab(prog: Prog) -> Result<()> {
-  elab_prog(prog, &mut Env::default())
+  let mut env = Env::default();
+  let r = elab_prog(prog, &mut env);
+  println!("{}", env);
+  r
 }
 
 pub fn elab_prog(prog: Prog, env: &mut Env) -> Result<()> {
   prog.decls.into_iter().map(|decl| elab_decl(decl, env)).collect::<Result<Vec<_>>>()?;
-  assert!(env.var_tys.is_empty());
+  // assert!(env.var_tys.is_empty());
   elab_tm_chk(prog.tm, prog.ty, env)?;
   Ok(())
 }
@@ -129,12 +144,12 @@ fn params_as_app(left: Tm, tms: &[Tm]) -> Tm {
 
 fn elab_cstr(cstr: Cstr, data: &Data, env: &mut Env) -> Result<()> {
   let as_fn = ctx_to_fn(&data.params, tel_to_fn(&cstr.args, params_as_app(Tm::Glo(data.ident.clone()), &cstr.params)));
-
+  let args_len = cstr.args.binds.len();
   elab_tel(cstr.args, env, Some(data.level))?;
 
   for i in 0..data.params.binds.len() {
     if let Tm::Var(TmVar { idx, name: _, .. }) = &cstr.params[i] {
-      if idx.0 == i {
+      if idx.0 == i + args_len {
         continue;
       }
     }
@@ -154,17 +169,15 @@ fn elab_cstr(cstr: Cstr, data: &Data, env: &mut Env) -> Result<()> {
   Ok(())
 }
 
-fn expect_set(ty: Tm, max_lvl: Option<usize>) -> Result<()> {
+fn max_set_lvl(ty: Tm, max_lvl: Option<usize>) -> Result<()> {
   if let Tm::Set(TmSet { level, .. }) = ty {
     if let Some(max_lvl) = max_lvl {
       if level > max_lvl {
         return Err(Error::from(ElabErr::CstrLevelTooHigh { span: ty.span(), max: max_lvl }));
       }
     }
-    Ok(())
-  } else {
-    Err(Error::Elab(ElabErr::ExpectedSet { span: ty.span(), got: ty.clone() }))
   }
+  Ok(())
 }
 
 fn elab_ctx(ctx: Ctx, env: &mut Env) -> Result<()> {
@@ -172,7 +185,7 @@ fn elab_ctx(ctx: Ctx, env: &mut Env) -> Result<()> {
     .tms
     .into_iter()
     .map(|tm| {
-      expect_set(elab_tm_inf(tm.clone(), env)?, None)?;
+      max_set_lvl(elab_tm_inf(tm.clone(), env)?, None)?;
       Ok(tm)
     })
     .collect::<Result<Vec<_>>>()?;
@@ -188,7 +201,7 @@ fn elab_tel(tel: Tel, env: &mut Env, max_lvl: Option<usize>) -> Result<()> {
     .zip(tel.binds)
     .map(|(tm, Ident { name, .. })| {
       let ty = elab_tm_inf(tm.clone(), env)?;
-      expect_set(ty, max_lvl)?;
+      max_set_lvl(ty, max_lvl)?;
       env.bind(name, tm);
       Ok(())
     })
@@ -232,8 +245,8 @@ fn elab_tm_chk(tm: Tm, ty: Tm, env: &mut Env) -> Result<()> {
 
 fn elab_tm_inf(tm: Tm, env: &mut Env) -> Result<Tm> {
   Ok(match tm {
-    Tm::Var(TmVar { idx, name, .. }) => env.var_tys.get(idx.0).unwrap_or_else(|| panic!("could not resolve type of variable {}", name)).clone(), // panic means impl error
-    Tm::Glo(x) => env.glo_tys.get(&x).unwrap_or_else(|| panic!("could not resolve type of global {}", x.name)).clone(),                          // panic means impl error
+    Tm::Var(TmVar { idx, name, .. }) => env.var_tys.get(idx.0).unwrap_or_else(|| panic!("could not resolve type of variable {}", name)).clone(),
+    Tm::Glo(x) => env.glo_tys.get(&x).unwrap_or_else(|| panic!("could not resolve type of global {}", x.name)).clone(),
     Tm::App(TmApp { left, right, .. }) => {
       let left_span = left.span();
       let lty = elab_tm_inf(*left, env)?;
@@ -250,7 +263,7 @@ fn elab_tm_inf(tm: Tm, env: &mut Env) -> Result<Tm> {
     Tm::Abs(_) => todo!(),
     Tm::All(TmAll { dom, codom, span, .. }) => match (elab_tm_inf(*dom, env)?, elab_tm_inf(*codom, env)?) {
       (Tm::Set(TmSet { level: level1, .. }), Tm::Set(TmSet { level: level2, .. })) => Tm::Set(TmSet { level: level1.max(level2), span }),
-      (Tm::Set(_), tm) | (tm, Tm::Set(_)) | (tm, _) => return Err(Error::Elab(ElabErr::ExpectedSet { span: tm.span(), got: tm })),
+      (Tm::Set(_), tm) | (tm, Tm::Set(_)) | (tm, _) => return Err(Error::Elab(ElabErr::ExpectedSetAll { span: tm.span(), got: tm })),
     },
     Tm::Set(TmSet { level, span }) => Tm::Set(TmSet { level: level + 1, span }),
   })

@@ -32,7 +32,8 @@ pub enum LexErr {
 
 #[derive(Clone, Debug)]
 pub enum ElabErr {
-  ExpectedSet { span: Span, got: Tm },
+  ExpectedSetCtx { span: Span, got: Tm },
+  ExpectedSetAll { span: Span, got: Tm },
   CstrLevelTooHigh { span: Span, max: usize },
   ExpectedParam { span: Span, got: Tm },
   TypeMismatch { ty1: Tm, ty2: Tm },

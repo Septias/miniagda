@@ -5,7 +5,8 @@ use crate::{
 
 impl Lvl {
   fn as_idx(&self, lvl: Lvl) -> Idx {
-    Idx::from(lvl.0 - self.0 - 1)
+    // TODO!
+    Idx::from(lvl.0.checked_sub(self.0).unwrap().checked_sub(1).unwrap())
   }
 }
 
@@ -58,6 +59,7 @@ fn quote(val: Val, lvl: Lvl) -> Tm {
 
 fn env_resolve(env: &[Val], x: TmVar) -> Val {
   // if this panics, implementation is wrong, there are no runtime errors!
+  println!("{}", x.name);
   match &env[x.idx.0] {
     // copy name and span from actual var
     Val::Var(ValVar { lvl, .. }) => Val::Var(ValVar {
@@ -70,6 +72,7 @@ fn env_resolve(env: &[Val], x: TmVar) -> Val {
 }
 
 pub fn eval(tm: Tm, env: &[Val]) -> Val {
+  println!("{}", tm);
   match tm {
     Tm::Var(x) => env_resolve(env, x),
     Tm::Glo(x) => Val::Glo(x.clone()),
