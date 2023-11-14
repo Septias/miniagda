@@ -47,7 +47,17 @@ pub fn lex(src: &str) -> Result<SpannedToks<'_, Token<'_>>, LexErr> {
     src,
     toks: lex
       .spanned()
-      .map(|(tok, span)| tok.map(|tok| Spanned::new(tok, Span { start: span.start, end: span.end })))
+      .map(|(tok, span)| {
+        tok.map(|tok| {
+          Spanned::new(
+            tok,
+            Span {
+              start: span.start,
+              end: span.end,
+            },
+          )
+        })
+      })
       .collect::<Result<Vec<_>, _>>()?,
   })
 }
@@ -128,7 +138,11 @@ pub enum Braced<T> {
   Item,
 }
 
-pub fn process_indent<T>(stoks: SpannedToks<T>, mut is_block_start: impl FnMut(&T) -> bool, mut is_newline: impl FnMut(&T) -> bool) -> SpannedToks<Braced<T>> {
+pub fn process_indent<T>(
+  stoks: SpannedToks<T>,
+  mut is_block_start: impl FnMut(&T) -> bool,
+  mut is_newline: impl FnMut(&T) -> bool,
+) -> SpannedToks<Braced<T>> {
   let mut toks = vec![];
   let mut indent_stack = vec![0];
   let mut waiting = false;
@@ -138,7 +152,10 @@ pub fn process_indent<T>(stoks: SpannedToks<T>, mut is_block_start: impl FnMut(&
   for stok in stoks.toks {
     let tok = *stok.val;
     let span = stok.span;
-    let span_end = Span { start: span.end, end: span.end };
+    let span_end = Span {
+      start: span.end,
+      end: span.end,
+    };
     let span_col = span.start - last_newline;
 
     // Skip newlines but remember their positions.

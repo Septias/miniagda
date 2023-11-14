@@ -1,3 +1,4 @@
+use crate::trace;
 use crate::{
   diagnostics::span::Span,
   syntax::core::{Idx, Lvl, Tm, TmAbs, TmAll, TmApp, TmVar, Val, ValAbs, ValAll, ValApp, ValVar},
@@ -13,7 +14,7 @@ impl Lvl {
 impl ValVar {
   pub fn from_lvl(lvl: Lvl) -> Self {
     ValVar {
-      name: "".to_owned(),
+      name: "<γ>".to_owned(),
       lvl,
       span: Span::dummy(),
     }
@@ -25,8 +26,13 @@ pub fn nf(tm: Tm, env: &[Val]) -> Tm {
 }
 
 fn quote(val: Val, lvl: Lvl) -> Tm {
-  match val {
-    Val::Var(ValVar { name, lvl: x, span }) => Tm::Var(TmVar { name, idx: x.as_idx(lvl), span }),
+  let val_str = format!("{}", val);
+  let tm = match val {
+    Val::Var(ValVar { name, lvl: x, span }) => Tm::Var(TmVar {
+      name,
+      idx: x.as_idx(lvl),
+      span,
+    }),
     Val::Glo(x) => Tm::Glo(x),
     Val::App(ValApp { left, right, span }) => Tm::App(TmApp {
       left: Box::new(quote(*left, lvl)),
@@ -43,7 +49,13 @@ fn quote(val: Val, lvl: Lvl) -> Tm {
         span,
       })
     }
-    Val::All(ValAll { env, ident, dom, codom, span }) => {
+    Val::All(ValAll {
+      env,
+      ident,
+      dom,
+      codom,
+      span,
+    }) => {
       let mut nenv = env.clone();
       nenv.push(Val::Var(ValVar::from_lvl(lvl)));
       Tm::All(TmAll {
@@ -54,12 +66,13 @@ fn quote(val: Val, lvl: Lvl) -> Tm {
       })
     }
     Val::Set(set) => Tm::Set(set.clone()),
-  }
+  };
+  trace!("qoute", "quoted `{}` to `{}`", val_str, tm);
+  tm
 }
 
 fn env_resolve(env: &[Val], x: TmVar) -> Val {
-  // if this panics, implementation is wrong, there are no runtime errors!
-  println!("{}", x.name);
+  // if this panics, implementation is wrong
   match &env[x.idx.0] {
     // copy name and span from actual var
     Val::Var(ValVar { lvl, .. }) => Val::Var(ValVar {
@@ -72,8 +85,8 @@ fn env_resolve(env: &[Val], x: TmVar) -> Val {
 }
 
 pub fn eval(tm: Tm, env: &[Val]) -> Val {
-  println!("{}", tm);
-  match tm {
+  let tm_str = format!("{}", tm);
+  let val = match tm {
     Tm::Var(x) => env_resolve(env, x),
     Tm::Glo(x) => Val::Glo(x.clone()),
     Tm::App(TmApp { left, right, span }) => match eval(*left, env) {
@@ -103,5 +116,7 @@ pub fn eval(tm: Tm, env: &[Val]) -> Val {
       span,
     }),
     Tm::Set(set) => Val::Set(set),
-  }
+  };
+  trace!("eval", "evaluated `{}` to `{}`", tm_str, val);
+  val
 }

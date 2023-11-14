@@ -89,8 +89,8 @@ impl Display for Tm {
     match self {
       Tm::Var(x) => write!(f, "{}", x.name),
       Tm::App(TmApp { left, right, .. }) => write!(f, "{} {}", left, right),
-      Tm::Abs(TmAbs { ident, ty, body, .. }) => write!(f, "λ ({} : {}) → {}", ident.name, ty, body),
-      Tm::All(TmAll { ident, dom, codom, .. }) => write!(f, "∀ ({} : {}) → {}", ident.name, dom, codom),
+      Tm::Abs(TmAbs { ident, ty, body, .. }) => write!(f, "λ ({} : {}) → {}", ident, ty, body),
+      Tm::All(TmAll { ident, dom, codom, .. }) => write!(f, "∀ ({} : {}) → {}", ident, dom, codom),
       Tm::Set(TmSet { level, .. }) => {
         write!(f, "Set{}", if *level != 0 { level.to_string() } else { String::new() })
       }
@@ -101,7 +101,16 @@ impl Display for Tm {
 
 impl Display for Ctx {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.ctx.iter().map(|(x, tm)| format!("({} : {})", x.name, tm)).collect::<Vec<String>>().join(" "))
+    write!(
+      f,
+      "{}",
+      self
+        .ctx
+        .iter()
+        .map(|(x, tm)| format!("({} : {})", x.name, tm))
+        .collect::<Vec<String>>()
+        .join(" ")
+    )
   }
 }
 
@@ -110,7 +119,7 @@ impl Display for Cstr {
     write!(
       f,
       "{} : {}{}{} {}",
-      self.ident.name,
+      self.ident,
       self.args,
       if self.args.ctx.is_empty() { "" } else { " → " },
       self.data.name,
@@ -124,7 +133,7 @@ impl Display for Data {
     write!(
       f,
       "data {}{}{} : {}{}Set{} where\n{}",
-      self.ident.name,
+      self.ident,
       if self.params.ctx.is_empty() { "" } else { " " },
       self.params,
       self.indices,

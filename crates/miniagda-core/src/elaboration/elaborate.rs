@@ -2,6 +2,7 @@ use crate::diagnostics::error::{ElabErr, Error};
 use crate::diagnostics::span::{Span, Spanned};
 use crate::diagnostics::Result;
 use crate::syntax::{core::*, Ident};
+use crate::{debug, info, trace};
 use std::collections::HashMap;
 use std::fmt::Display;
 
@@ -20,14 +21,28 @@ impl Display for Env {
     writeln!(f, "env")?;
     writeln!(f, "[{}]", self.env.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join(", "))?;
     writeln!(f, "tys")?;
-    writeln!(f, "[{}]", self.var_tys.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join(", "))?;
-    writeln!(f, "[{}]", self.glo_tys.iter().map(|(k, v)| format!("{}:{}", k.name, v)).collect::<Vec<String>>().join(", "))?;
+    writeln!(
+      f,
+      "[{}]",
+      self.var_tys.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join(", ")
+    )?;
+    writeln!(
+      f,
+      "[{}]",
+      self
+        .glo_tys
+        .iter()
+        .map(|(k, v)| format!("{}:{}", k.name, v))
+        .collect::<Vec<String>>()
+        .join(", ")
+    )?;
     writeln!(f, "lvl: {}", self.lvl.0)
   }
 }
 
 impl Env {
   fn add_global(&mut self, glo: Ident, ty: Tm) {
+    debug!("add_global", "add global `{}` with type `{}`", glo.name, ty);
     assert!(!self.glo_tys.contains_key(&glo));
     self.glo_tys.insert(glo, ty);
   }
@@ -42,6 +57,7 @@ impl Env {
   }
 
   fn bind(&mut self, name: String, ty: Tm) {
+    debug!("bind", "bound variable `{}` to type `{}`", name, ty);
     self.define(
       Val::Var(ValVar {
         name,
@@ -53,6 +69,7 @@ impl Env {
   }
 
   fn define(&mut self, val: Val, ty: Tm) {
+    debug!("define", "defined variable `{}` to type `{}`", val, ty);
     self.env.push(val);
     self.var_tys.push(ty);
     self.lvl += 1;
@@ -62,7 +79,6 @@ impl Env {
 pub fn elab(prog: Prog) -> Result<()> {
   let mut env = Env::default();
   let r = elab_prog(prog, &mut env);
-  println!("{}", env);
   r
 }
 
@@ -102,24 +118,42 @@ fn tms_to_fn(tms: &[Tm], binds: &[Ident], end: Tm) -> Tm {
 }
 
 fn ctx_to_fn(ctx: &Ctx, end: Tm) -> Tm {
-  tms_to_fn(&mut ctx.tms.clone(), &mut ctx.binds.clone(), end)
+  tms_to_fn(&ctx.tms, &ctx.binds, end)
 }
 
 fn tel_to_fn(tel: &Tel, end: Tm) -> Tm {
-  tms_to_fn(&mut tel.tms.clone(), &mut tel.binds.clone(), end)
+  tms_to_fn(&tel.tms, &tel.binds, end)
 }
 
 fn elab_data(data: Data, env: &mut Env) -> Result<()> {
-  let as_fn = ctx_to_fn(&data.params, tel_to_fn(&data.indices, Tm::Set(TmSet { level: data.level, span: data.span() })));
-  let cstr_clone = data.clone(); // TODO: optimize+
+  let name = data.ident.clone();
+  info!("elab_data", "elaborating data type `{}`", name);
+  let as_fn = ctx_to_fn(
+    &data.params,
+    tel_to_fn(
+      &data.indices,
+      Tm::Set(TmSet {
+        level: data.level,
+        span: data.span(),
+      }),
+    ),
+  );
+  let cstr_clone = data.clone(); // TODO: optimize
 
+  info!("elab_data", "elaborating paramters `{}` of type `{}`", data.params, name);
   elab_ctx(data.params, env)?;
 
+  info!("elab_data", "elaborating indices `{}` of type `{}`", data.indices, name);
   env.forget(|env| elab_tel(data.indices, env, None))?;
 
   env.add_global(data.ident, as_fn);
 
-  data.cstrs.into_iter().map(|cstr| env.forget(|env| elab_cstr(cstr, &cstr_clone, env))).collect::<Result<Vec<_>>>()?;
+  data
+    .cstrs
+    .into_iter()
+    .map(|cstr| env.forget(|env| elab_cstr(cstr, &cstr_clone, env)))
+    .collect::<Result<Vec<_>>>()?;
+  info!("elab_data", "elaborated data type `{}`", name);
   Ok(())
 }
 
@@ -143,8 +177,15 @@ fn params_as_app(left: Tm, tms: &[Tm]) -> Tm {
 }
 
 fn elab_cstr(cstr: Cstr, data: &Data, env: &mut Env) -> Result<()> {
-  let as_fn = ctx_to_fn(&data.params, tel_to_fn(&cstr.args, params_as_app(Tm::Glo(data.ident.clone()), &cstr.params)));
+  let name = cstr.ident.clone();
+  info!("elab_cstr", "elaborating constructor `{}`", name);
+  let as_fn = ctx_to_fn(
+    &data.params,
+    tel_to_fn(&cstr.args, params_as_app(Tm::Glo(data.ident.clone()), &cstr.params)),
+  );
   let args_len = cstr.args.binds.len();
+
+  info!("elab_cstr", "elaborating constructor arguments `{}`", cstr.args);
   elab_tel(cstr.args, env, Some(data.level))?;
 
   for i in 0..data.params.binds.len() {
@@ -160,12 +201,18 @@ fn elab_cstr(cstr: Cstr, data: &Data, env: &mut Env) -> Result<()> {
   }
 
   let indices_params = &cstr.params[data.params.binds.len()..];
+  info!(
+    "elab_cstr",
+    "checking constructor indices `[{}]` match expected types `[{}]`",
+    indices_params.iter().map(|x| format!("{}", x)).collect::<Vec<String>>().join(", "),
+    data.indices.tms.iter().map(|x| format!("{}", x)).collect::<Vec<String>>().join(", ")
+  );
   elab_tms_chk(indices_params, &data.indices.tms, &data.indices.binds, env)?;
 
   env.add_global(cstr.ident, as_fn);
 
   // TODO: Termination checking.
-
+  info!("elab_cstr", "elaborated constructor `{}`", name);
   Ok(())
 }
 
@@ -173,7 +220,10 @@ fn max_set_lvl(ty: Tm, max_lvl: Option<usize>) -> Result<()> {
   if let Tm::Set(TmSet { level, .. }) = ty {
     if let Some(max_lvl) = max_lvl {
       if level > max_lvl {
-        return Err(Error::from(ElabErr::CstrLevelTooHigh { span: ty.span(), max: max_lvl }));
+        return Err(Error::from(ElabErr::CstrLevelTooHigh {
+          span: ty.span(),
+          max: max_lvl,
+        }));
       }
     }
   }
@@ -190,7 +240,10 @@ fn elab_ctx(ctx: Ctx, env: &mut Env) -> Result<()> {
     })
     .collect::<Result<Vec<_>>>()?;
 
-  tys_lvls.into_iter().zip(ctx.binds).for_each(|(tm, Ident { name, .. })| env.bind(name, tm));
+  tys_lvls
+    .into_iter()
+    .zip(ctx.binds)
+    .for_each(|(tm, Ident { name, .. })| env.bind(name, tm));
   Ok(())
 }
 
@@ -222,6 +275,10 @@ fn elab_tms_chk(tms: &[Tm], tys: &[Tm], binds: &[Ident], env: &mut Env) -> Resul
 }
 
 fn elab_tm_chk(tm: Tm, ty: Tm, env: &mut Env) -> Result<()> {
+  trace!("elab_tm_chk", "check that term `{}` has type `{}` (up to β-η reduction)", tm, ty);
+  let tm_str = format!("{}", tm);
+  let ty_str = format!("{}", ty);
+
   match (tm, ty) {
     (Tm::Abs(TmAbs { ident, ty: _, body, .. }), Tm::All(TmAll { dom, codom, .. })) => {
       let mut nenv = env.clone();
@@ -240,13 +297,28 @@ fn elab_tm_chk(tm: Tm, ty: Tm, env: &mut Env) -> Result<()> {
       }
     }
   };
+  trace!(
+    "elab_tm_chk",
+    "checked that term `{}` has type `{}` (up to β-η reduction)",
+    tm_str,
+    ty_str
+  );
   Ok(())
 }
 
 fn elab_tm_inf(tm: Tm, env: &mut Env) -> Result<Tm> {
-  Ok(match tm {
-    Tm::Var(TmVar { idx, name, .. }) => env.var_tys.get(idx.0).unwrap_or_else(|| panic!("could not resolve type of variable {}", name)).clone(),
-    Tm::Glo(x) => env.glo_tys.get(&x).unwrap_or_else(|| panic!("could not resolve type of global {}", x.name)).clone(),
+  let tm_str = format!("{}", tm);
+  let ty = match tm {
+    Tm::Var(TmVar { idx, name, .. }) => env
+      .var_tys
+      .get(idx.0)
+      .unwrap_or_else(|| panic!("could not resolve type of variable {}", name))
+      .clone(),
+    Tm::Glo(x) => env
+      .glo_tys
+      .get(&x)
+      .unwrap_or_else(|| panic!("could not resolve type of global {}", x.name))
+      .clone(),
     Tm::App(TmApp { left, right, .. }) => {
       let left_span = left.span();
       let lty = elab_tm_inf(*left, env)?;
@@ -254,6 +326,7 @@ fn elab_tm_inf(tm: Tm, env: &mut Env) -> Result<Tm> {
         Tm::All(TmAll { dom, codom, .. }) => {
           let mut tenv = env.env.clone();
           tenv.push(eval(*right.clone(), &env.env));
+          
           elab_tm_chk(*right, *dom, env)?;
           nf(*codom, &tenv)
         }
@@ -262,11 +335,16 @@ fn elab_tm_inf(tm: Tm, env: &mut Env) -> Result<Tm> {
     }
     Tm::Abs(_) => todo!(),
     Tm::All(TmAll { dom, codom, span, .. }) => match (elab_tm_inf(*dom, env)?, elab_tm_inf(*codom, env)?) {
-      (Tm::Set(TmSet { level: level1, .. }), Tm::Set(TmSet { level: level2, .. })) => Tm::Set(TmSet { level: level1.max(level2), span }),
+      (Tm::Set(TmSet { level: level1, .. }), Tm::Set(TmSet { level: level2, .. })) => Tm::Set(TmSet {
+        level: level1.max(level2),
+        span,
+      }),
       (Tm::Set(_), tm) | (tm, Tm::Set(_)) | (tm, _) => return Err(Error::Elab(ElabErr::ExpectedSetAll { span: tm.span(), got: tm })),
     },
     Tm::Set(TmSet { level, span }) => Tm::Set(TmSet { level: level + 1, span }),
-  })
+  };
+  trace!("elab_tm_inf", "inferred type of {} to be {}", tm_str, ty);
+  Ok(ty)
 }
 
 fn eq(_val1: &Tm, _val2: &Tm) -> bool {

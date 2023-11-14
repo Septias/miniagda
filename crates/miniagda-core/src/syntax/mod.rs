@@ -7,26 +7,12 @@ use crate::{
     span::Span,
   },
 };
-use std::hash::Hash;
+use std::{fmt::Display, hash::Hash};
 
 #[derive(Clone, Debug)]
 pub struct Ident {
   pub name: String,
   pub span: Span,
-}
-
-impl PartialEq for Ident {
-  fn eq(&self, other: &Self) -> bool {
-    self.name == other.name
-  }
-}
-
-impl Eq for Ident {}
-
-impl Hash for Ident {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    self.name.hash(state);
-  }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -48,7 +34,10 @@ impl Env {
         if self.glo.contains(&var) {
           Ok(core::Tm::Glo(var))
         } else {
-          Err(Error::from(SurfaceToCoreErr::UnboundName { name: var.name, span: var.span }))
+          Err(Error::from(SurfaceToCoreErr::UnboundName {
+            name: var.name,
+            span: var.span,
+          }))
         }
       }
     }
@@ -77,7 +66,11 @@ impl Env {
 pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
   let mut env = Env::default();
   let prog = core::Prog {
-    decls: prog.decls.into_iter().map(|decl| surf_to_core_decl(decl, &mut env)).collect::<Result<Vec<_>>>()?,
+    decls: prog
+      .decls
+      .into_iter()
+      .map(|decl| surf_to_core_decl(decl, &mut env))
+      .collect::<Result<Vec<_>>>()?,
     ty: surf_to_core_tm(prog.ty, &mut env)?,
     tm: surf_to_core_tm(prog.tm, &mut env)?,
     span: prog.span.clone(),
@@ -101,7 +94,11 @@ fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
 
   let indices = env.forget_vars(|env| surf_to_core_tel(data.indices, env))?;
 
-  let cstrs = data.cstrs.into_iter().map(|cstr| surf_to_core_cstr(cstr, env)).collect::<Result<Vec<_>>>()?;
+  let cstrs = data
+    .cstrs
+    .into_iter()
+    .map(|cstr| surf_to_core_cstr(cstr, env))
+    .collect::<Result<Vec<_>>>()?;
 
   Ok(core::Data {
     ident: data.ident,
@@ -114,14 +111,29 @@ fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
 }
 
 fn surf_to_core_ctx(ctx: surface::Ctx, env: &mut Env) -> Result<core::Ctx> {
-  let (binds, tms): (Vec<Ident>, Vec<core::Tm>) = ctx.ctx.into_iter().map(|(x, tm)| Ok((x, surf_to_core_tm(tm, env)?))).collect::<Result<Vec<_>>>()?.into_iter().unzip();
+  let (binds, tms): (Vec<Ident>, Vec<core::Tm>) = ctx
+    .ctx
+    .into_iter()
+    .map(|(x, tm)| Ok((x, surf_to_core_tm(tm, env)?)))
+    .collect::<Result<Vec<_>>>()?
+    .into_iter()
+    .unzip();
 
   binds.iter().for_each(|i| env.add_var(i.clone()));
-  Ok(core::Ctx { binds, tms, span: ctx.span.clone() })
+  Ok(core::Ctx {
+    binds,
+    tms,
+    span: ctx.span.clone(),
+  })
 }
 
 fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
-  let (args, params) = env.forget_vars(|env| (surf_to_core_tel(cstr.args, env), cstr.params.into_iter().map(|tm| surf_to_core_tm(tm, env)).collect::<Result<Vec<_>>>()));
+  let (args, params) = env.forget_vars(|env| {
+    (
+      surf_to_core_tel(cstr.args, env),
+      cstr.params.into_iter().map(|tm| surf_to_core_tm(tm, env)).collect::<Result<Vec<_>>>(),
+    )
+  });
 
   env.add_glo(cstr.ident.clone())?;
 
@@ -146,7 +158,11 @@ fn surf_to_core_tel(tel: surface::Ctx, env: &mut Env) -> Result<core::Tel> {
     .collect::<Result<Vec<_>>>()?
     .into_iter()
     .unzip();
-  Ok(core::Tel { binds, tms, span: tel.span.clone() })
+  Ok(core::Tel {
+    binds,
+    tms,
+    span: tel.span.clone(),
+  })
 }
 
 fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
@@ -180,4 +196,24 @@ fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
     surface::Tm::Set(surface::TmSet { level, span }) => core::Tm::Set(core::TmSet { level, span }),
     surface::Tm::Brc(tm) => surf_to_core_tm(*tm, env)?,
   })
+}
+
+impl PartialEq for Ident {
+  fn eq(&self, other: &Self) -> bool {
+    self.name == other.name
+  }
+}
+
+impl Eq for Ident {}
+
+impl Hash for Ident {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.name.hash(state);
+  }
+}
+
+impl Display for Ident {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.name)
+  }
 }
