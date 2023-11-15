@@ -12,13 +12,27 @@ impl ValVar {
   }
 }
 
+// TODO: Env wrapper
+
+pub fn env_ext_lvl(env: Vec<Val>, lvl: Lvl) -> Vec<Val> {
+  let mut env = env.to_owned();
+  env.push(Val::Var(ValVar::from_lvl(lvl)));
+  env
+}
+
+pub fn env_ext(env: Vec<Val>, val: Val) -> Vec<Val> {
+  let mut env = env.to_owned();
+  env.push(val);
+  env
+}
+
 fn env_resolve(env: &[Val], x: TmVar) -> Val {
   // if this panics, implementation is wrong
   trace!(
     "env_reosolve",
     "resolving `{}` from env `[{}]`",
     x,
-    env.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join(", ")
+    env.iter().map(|v| format!("{v}")).collect::<Vec<String>>().join(", ")
   );
   match &env[x.idx.0] {
     // copy name and span from actual var
@@ -32,15 +46,15 @@ fn env_resolve(env: &[Val], x: TmVar) -> Val {
 }
 
 pub fn eval(tm: Tm, env: &[Val]) -> Val {
-  let tm_str = format!("{}", tm);
+  let tm_str = format!("{tm}");
   let val = match tm {
     Tm::Var(x) => env_resolve(env, x),
     Tm::Glo(x) => Val::Glo(x.clone()),
     Tm::App(TmApp { left, right, span }) => match eval(*left, env) {
       Val::Abs(ValAbs { env, body, .. }) => {
-        let mut nenv = env.clone();
-        nenv.push(eval(*right, &env));
-        eval(body, &nenv)
+        let mut n_env = env.clone();
+        n_env.push(eval(*right, &env));
+        eval(body, &n_env)
       }
       v => Val::App(ValApp {
         left: Box::new(v),

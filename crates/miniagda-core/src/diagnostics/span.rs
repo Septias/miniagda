@@ -10,7 +10,7 @@ pub struct Span {
 impl Span {
   pub fn dummy() -> Self {
     Span {
-      file: "".to_owned(),
+      file: String::new(),
       start: 0,
       end: 0,
     }

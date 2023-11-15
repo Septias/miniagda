@@ -5,7 +5,7 @@ use crate::syntax::Ident;
 
 peg::parser! {
     pub grammar parser<'a>(file: &str) for SpannedToks<'a, Braced<Token<'a>>> {
-        use Token::*;
+        use Token::{All, Arrow, BraceL, BraceR, Colon, Data, Equals, Id, Lambda, ParenL, ParenR, Where};
         use Braced::{Begin, End, Item};
         use Braced::Token as Tok;
 
@@ -62,13 +62,13 @@ peg::parser! {
             if (name != ident.name) {
               return Err("type of data type constructors are expected to end in data type itself")
             }
-            Ok((ctx, tm.map(unroll_app).unwrap_or_else(Vec::new)))
+            Ok((ctx, tm.map_or_else(Vec::new, unroll_app)))
           }
           / pos:position!() ident:id() tm:tm()? {?
             if (name != ident.name) {
               return Err("type of data type constructors are expected to end in data type itself")
             }
-            Ok((Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, tm.map(unroll_app).unwrap_or_else(Vec::new)))
+            Ok((Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, tm.map_or_else(Vec::new, unroll_app)))
           }
 
       rule cstr(data : &Ident) -> Cstr

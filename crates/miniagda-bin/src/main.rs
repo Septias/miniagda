@@ -1,15 +1,24 @@
 use std::env;
 
 use env_logger::Env;
+use miniagda_core::diagnostics::error::Error;
 use miniagda_core::diagnostics::Result;
 use miniagda_core::{elaboration::elaborate::elab, parsing::parse, syntax::surface_to_core};
-fn main() -> Result<()> {
-  env_logger::Builder::from_env(Env::default().default_filter_or("warn")).format_timestamp(None).init();
 
-  let path: String = env::args().collect::<Vec<_>>()[1].clone();
+fn run(path: String) -> Result<()> {
   let prog = parse(path)?;
-  println!("-- surface -------------------------------------------------------\n\n{}\n", &prog);
+  // println!("-- surface -------------------------------------------------------\n\n{}\n", &prog);
   let prog = surface_to_core(prog)?;
-  println!("-- core ----------------------------------------------------------\n\n{}\n", &prog);
+  // println!("-- core ----------------------------------------------------------\n\n{}\n", &prog);
   elab(prog)
+}
+
+fn main() {
+  env_logger::Builder::from_env(Env::default().default_filter_or("warn")).format_timestamp(None).init();
+  let _ = run(env::args().collect::<Vec<_>>()[1].clone()).map_err(|e| match e {
+    Error::SurfaceToCore(e) => log::error!(target: "translation to core language", "{}", e),
+    Error::Parse(e) => log::error!(target: "parsing", "{}", e),
+    Error::Lex(e) => log::error!(target: "lexing", "{}", e),
+    Error::Elab(e) => log::error!(target: "elaboration", "{}", e),
+  });
 }

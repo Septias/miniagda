@@ -172,7 +172,7 @@ impl Add<usize> for Lvl {
 
 impl AddAssign<usize> for Lvl {
   fn add_assign(&mut self, rhs: usize) {
-    self.0 += rhs
+    self.0 += rhs;
   }
 }
 
@@ -181,24 +181,24 @@ impl Display for Val {
     match self {
       Val::Var(ValVar { lvl, name, .. }) => write!(f, "{}{{{{{}}}}}", name, lvl.0),
       Val::Glo(x) => write!(f, "{}", x.name),
-      Val::App(ValApp { left, right, .. }) => write!(f, "({} {})", left, right),
+      Val::App(ValApp { left, right, .. }) => write!(f, "({left} {right})"),
       Val::Abs(ValAbs { env, ident, ty, body, .. }) => write!(
         f,
         "(λ[{}]({} : {}) → {})",
         ident,
-        env.iter().map(|val| format!("{}", val)).collect::<Vec<String>>().join(", "),
+        env.iter().map(|val| format!("{val}")).collect::<Vec<String>>().join(", "),
         ty,
         body
       ),
       Val::All(ValAll { env, ident, dom, codom, .. }) => write!(
         f,
         "(∀[{}]({} : {}) → {})",
-        env.iter().map(|val| format!("{}", val)).collect::<Vec<String>>().join(", "),
+        env.iter().map(|val| format!("{val}")).collect::<Vec<String>>().join(", "),
         ident,
         dom,
         codom
       ),
-      Val::Set(TmSet { level, .. }) => write!(f, "Set{}", if *level != 0 { level.to_string() } else { String::new() }),
+      Val::Set(TmSet { level, .. }) => write!(f, "Set{}", if *level == 0 { String::new() } else { level.to_string() }),
     }
   }
 }
@@ -212,13 +212,13 @@ impl Display for TmVar {
 impl Display for Tm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Tm::Var(x) => write!(f, "{}", x),
+      Tm::Var(x) => write!(f, "{x}"),
       Tm::Glo(x) => write!(f, "{}", x.name),
-      Tm::App(TmApp { left, right, .. }) => write!(f, "({} {})", left, right),
-      Tm::Abs(TmAbs { ident, ty, body, .. }) => write!(f, "(λ ({} : {}) → {})", ident, ty, body),
-      Tm::All(TmAll { ident, dom, codom, .. }) => write!(f, "(∀ ({} : {}) → {})", ident, dom, codom),
+      Tm::App(TmApp { left, right, .. }) => write!(f, "({left} {right})"),
+      Tm::Abs(TmAbs { ident, ty, body, .. }) => write!(f, "(λ ({ident} : {ty}) → {body})"),
+      Tm::All(TmAll { ident, dom, codom, .. }) => write!(f, "(∀ ({ident} : {dom}) → {codom})"),
       Tm::Set(TmSet { level, .. }) => {
-        write!(f, "Set{}", if *level != 0 { level.to_string() } else { String::new() })
+        write!(f, "Set{}", if *level == 0 { String::new() } else { level.to_string() })
       }
     }
   }
@@ -265,7 +265,7 @@ impl Display for Cstr {
       self.args,
       if self.args.tms.is_empty() { "" } else { " → " },
       self.data.name,
-      self.params.iter().map(|tm| format!("{}", tm)).collect::<Vec<String>>().join(" ")
+      self.params.iter().map(|tm| format!("{tm}")).collect::<Vec<String>>().join(" ")
     )
   }
 }
@@ -280,8 +280,8 @@ impl Display for Data {
       self.params,
       self.indices,
       if self.indices.tms.is_empty() { "" } else { " → " },
-      if self.level != 0 { self.level.to_string() } else { String::new() },
-      self.cstrs.iter().map(|cstr| format!("  {}", cstr)).collect::<Vec<String>>().join("\n")
+      if self.level != 0 { String::new() } else { self.level.to_string() },
+      self.cstrs.iter().map(|cstr| format!("  {cstr}")).collect::<Vec<String>>().join("\n")
     )
   }
 }
@@ -289,7 +289,7 @@ impl Display for Data {
 impl Display for Decl {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Decl::Data(data) => write!(f, "{}", data),
+      Decl::Data(data) => write!(f, "{data}"),
     }
   }
 }
@@ -299,7 +299,7 @@ impl Display for Prog {
     write!(
       f,
       "{}\n\n_ : {}\n_ = {}",
-      self.decls.iter().map(|decl| format!("{}", decl)).collect::<Vec<String>>().join("\n\n"),
+      self.decls.iter().map(|decl| format!("{decl}")).collect::<Vec<String>>().join("\n\n"),
       self.ty,
       self.tm
     )

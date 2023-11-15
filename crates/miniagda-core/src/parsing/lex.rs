@@ -138,14 +138,14 @@ pub enum Braced<T> {
   Item,
 }
 
-pub fn process_indent<T>(stoks: SpannedToks<T>, mut is_block_start: impl FnMut(&T) -> bool, mut is_newline: impl FnMut(&T) -> bool) -> SpannedToks<Braced<T>> {
+pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut(&T) -> bool, mut is_newline: impl FnMut(&T) -> bool) -> SpannedToks<Braced<T>> {
   let mut toks = vec![];
   let mut indent_stack = vec![0];
   let mut waiting = false;
   let mut last_newline = 0;
 
   toks.push(Spanned::new(Braced::Begin, Span { start: 0, end: 0 }));
-  for stok in stoks.toks {
+  for stok in spanned.toks {
     let tok = *stok.val;
     let span = stok.span;
     let span_end = Span { start: span.end, end: span.end };
@@ -159,11 +159,11 @@ pub fn process_indent<T>(stoks: SpannedToks<T>, mut is_block_start: impl FnMut(&
 
     // Pop indents larger than the start of this token and add corresponding end-tokens.
     let mut drop = 0;
-    for i in indent_stack.iter().cloned().rev() {
+    for i in indent_stack.iter().copied().rev() {
       if i <= span_col {
         break;
       }
-      drop += 1
+      drop += 1;
     }
     for _ in 0..drop {
       indent_stack.pop();
@@ -171,6 +171,7 @@ pub fn process_indent<T>(stoks: SpannedToks<T>, mut is_block_start: impl FnMut(&
     }
 
     // If the current token starts a new item, push a separation token.
+    #[allow(clippy::missing_panics_doc)]
     let started_new_item = span_col == *indent_stack.last().unwrap();
     if started_new_item {
       toks.push(Spanned::new(Braced::Item, span_end.clone()));
@@ -202,12 +203,12 @@ pub fn process_indent<T>(stoks: SpannedToks<T>, mut is_block_start: impl FnMut(&
 
   // Close all blocks which are still open at the end of the token stream.
   let span_end = Span {
-    start: stoks.src.len(),
-    end: stoks.src.len(),
+    start: spanned.src.len(),
+    end: spanned.src.len(),
   };
   for _ in indent_stack {
     toks.push(Spanned::new(Braced::End, span_end.clone()));
   }
 
-  SpannedToks { src: stoks.src, toks }
+  SpannedToks { src: spanned.src, toks }
 }

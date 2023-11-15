@@ -163,22 +163,22 @@ fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
       span: span.clone(),
     }),
     surface::Tm::Abs(surface::TmAbs { ident, ty, body, span }) => {
-      let mut nenv: Env = env.clone();
-      nenv.add_var(ident.clone());
+      let mut n_env: Env = env.clone();
+      n_env.add_var(ident.clone());
       core::Tm::Abs(core::TmAbs {
         ident,
         ty: Box::new(surf_to_core_tm(*ty, env)?),
-        body: Box::new(surf_to_core_tm(*body, &mut nenv)?),
+        body: Box::new(surf_to_core_tm(*body, &mut n_env)?),
         span: span.clone(),
       })
     }
     surface::Tm::All(surface::TmAll { ident, dom, codom, span }) => {
-      let mut nenv = env.clone();
-      nenv.add_var(ident.clone());
+      let mut n_env = env.clone();
+      n_env.add_var(ident.clone());
       core::Tm::All(core::TmAll {
         ident,
         dom: Box::new(surf_to_core_tm(*dom, env)?),
-        codom: Box::new(surf_to_core_tm(*codom, &mut nenv)?),
+        codom: Box::new(surf_to_core_tm(*codom, &mut n_env)?),
         span: span.clone(),
       })
     }
