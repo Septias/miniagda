@@ -16,7 +16,7 @@ fn run(path: String) -> Result<()> {
 fn main() {
   env_logger::Builder::from_env(Env::default().default_filter_or("info")).format_timestamp(None).init();
   match run(env::args().collect::<Vec<_>>()[1].clone()) {
-    Ok(_) => log::info!(target: "miniagda", "type check successful"),
+    Ok(()) => log::info!(target: "miniagda", "type check successful"),
     Err(e) => match e {
       Error::SurfaceToCore(e) => log::error!(target: "translation to core language", "{}", e),
       Error::Parse(e) => log::error!(target: "parsing", "{}", e),

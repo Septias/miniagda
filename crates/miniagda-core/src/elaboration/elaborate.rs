@@ -154,7 +154,7 @@ fn elab_data(data: Data, state: &mut State) -> Result<()> {
   );
   let cstr_clone = data.clone(); // TODO: optimize
 
-  debug!("elab_data", "elaborating paramters `{}` of data type `{}`", data.params, name);
+  debug!("elab_data", "elaborating parameters `{}` of data type `{}`", data.params, name);
   elab_ctx(data.params, state)?;
 
   debug!("elab_data", "elaborating indices `{}` of data type `{}`", data.indices, name);
@@ -297,7 +297,7 @@ fn elab_tm_chk(tm: Tm, ty: Val, state: &State) -> Result<()> {
       // if !eq(&ty, &dom) {
       //   return Err(Error::Elab(ElabErr::TypeMismatch { ty1: ty, ty2: *dom }));
       // }
-      elab_tm_chk(*body, eval(codom, &env_ext_lvl(env, state.lvl)), &n_state)?;
+      elab_tm_chk(*body, eval(codom, &env_ext_lvl(&env, state.lvl)), &n_state)?;
     }
     (tm, ty) => {
       let ity = elab_tm_inf(tm, state)?;
@@ -323,7 +323,7 @@ fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
         Val::All(ValAll { dom, codom, env, .. }) => {
           elab_tm_chk(*right.clone(), *dom, state)?;
           let right = eval(*right, &state.env);
-          eval(codom, &env_ext(env, right))
+          eval(codom, &env_ext(&env, right))
         }
         ty => return Err(Error::from(ElabErr::FunctionTypeExpected { tm: left_clone, got: ty })),
       }
@@ -352,7 +352,7 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> bool {
       Val::Abs(ValAbs {
         ty: ty2, body: body2, env: env2, ..
       }),
-    ) => eq(*ty1, *ty2, lvl) && eq(eval(body1, &env_ext_lvl(env1, lvl)), eval(body2, &env_ext_lvl(env2, lvl)), lvl + 1),
+    ) => eq(*ty1, *ty2, lvl) && eq(eval(body1, &env_ext_lvl(&env1, lvl)), eval(body2, &env_ext_lvl(&env2, lvl)), lvl + 1),
     (
       Val::All(ValAll {
         dom: dom1,
@@ -366,12 +366,12 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> bool {
         env: env2,
         ..
       }),
-    ) => eq(*dom1, *dom2, lvl) && eq(eval(codom1, &env_ext_lvl(env1, lvl)), eval(codom2, &env_ext_lvl(env2, lvl)), lvl + 1),
+    ) => eq(*dom1, *dom2, lvl) && eq(eval(codom1, &env_ext_lvl(&env1, lvl)), eval(codom2, &env_ext_lvl(&env2, lvl)), lvl + 1),
     (Val::Abs(ValAbs { env, body, .. }), val) => {
       let var = Val::Var(ValVar::from_lvl(lvl));
       let span = val.span();
       eq(
-        eval(body, &env_ext_lvl(env, lvl)),
+        eval(body, &env_ext_lvl(&env, lvl)),
         Val::App(ValApp {
           left: Box::new(val),
           right: Box::new(var),
@@ -389,7 +389,7 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> bool {
           right: Box::new(var),
           span,
         }),
-        eval(body, &env_ext_lvl(env, lvl)),
+        eval(body, &env_ext_lvl(&env, lvl)),
         lvl + 1,
       )
     }

@@ -92,7 +92,7 @@ impl Display for Tm {
       Tm::Abs(TmAbs { ident, ty, body, .. }) => write!(f, "λ ({ident} : {ty}) → {body}"),
       Tm::All(TmAll { ident, dom, codom, .. }) => write!(f, "∀ ({ident} : {dom}) → {codom}"),
       Tm::Set(TmSet { level, .. }) => {
-        write!(f, "Set{}", if *level != 0 { level.to_string() } else { String::new() })
+        write!(f, "Set{}", if *level == 0 { String::new() } else { level.to_string() })
       }
       Tm::Brc(tm) => write!(f, "({tm})"),
     }

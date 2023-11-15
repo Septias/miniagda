@@ -280,7 +280,7 @@ impl Display for Data {
       self.params,
       self.indices,
       if self.indices.tms.is_empty() { "" } else { " → " },
-      if self.level != 0 { String::new() } else { self.level.to_string() },
+      if self.level == 0 { self.level.to_string() } else { String::new() },
       self.cstrs.iter().map(|cstr| format!("  {cstr}")).collect::<Vec<String>>().join("\n")
     )
   }

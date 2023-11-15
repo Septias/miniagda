@@ -171,7 +171,6 @@ pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut
     }
 
     // If the current token starts a new item, push a separation token.
-    #[allow(clippy::missing_panics_doc)]
     let started_new_item = span_col == *indent_stack.last().unwrap();
     if started_new_item {
       toks.push(Spanned::new(Braced::Item, span_end.clone()));
