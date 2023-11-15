@@ -14,11 +14,14 @@ fn run(path: String) -> Result<()> {
 }
 
 fn main() {
-  env_logger::Builder::from_env(Env::default().default_filter_or("warn")).format_timestamp(None).init();
-  let _ = run(env::args().collect::<Vec<_>>()[1].clone()).map_err(|e| match e {
-    Error::SurfaceToCore(e) => log::error!(target: "translation to core language", "{}", e),
-    Error::Parse(e) => log::error!(target: "parsing", "{}", e),
-    Error::Lex(e) => log::error!(target: "lexing", "{}", e),
-    Error::Elab(e) => log::error!(target: "elaboration", "{}", e),
-  });
+  env_logger::Builder::from_env(Env::default().default_filter_or("info")).format_timestamp(None).init();
+  match run(env::args().collect::<Vec<_>>()[1].clone()) {
+    Ok(_) => log::info!(target: "miniagda", "type check successful"),
+    Err(e) => match e {
+      Error::SurfaceToCore(e) => log::error!(target: "translation to core language", "{}", e),
+      Error::Parse(e) => log::error!(target: "parsing", "{}", e),
+      Error::Lex(e) => log::error!(target: "lexing", "{}", e),
+      Error::Elab(e) => log::error!(target: "elaboration", "{}", e),
+    },
+  }
 }

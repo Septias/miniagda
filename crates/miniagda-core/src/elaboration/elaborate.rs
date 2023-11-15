@@ -7,7 +7,7 @@ use crate::syntax::{
   core::{Cstr, Ctx, Data, Decl, Lvl, Prog, Tel, Tm, TmAbs, TmAll, TmApp, TmSet, TmVar, Val, ValAbs, ValAll, ValApp, ValVar},
   Ident,
 };
-use crate::{debug, info, trace};
+use crate::{debug, trace};
 use core::panic;
 use std::collections::HashMap;
 
@@ -27,7 +27,7 @@ impl State {
       "resolved global `{}` to be of type `{}` in `{{{}}}",
       var,
       ty,
-      self.glo_tys.iter().map(|(k, v)| format!("{k}: {v}")).collect::<Vec<String>>().join(", ")
+      self.glo_tys.iter().map(|(k, v)| format!("{k} : {v}")).collect::<Vec<String>>().join(", ")
     );
     ty
   }
@@ -64,7 +64,6 @@ impl State {
   }
 
   fn bind(&mut self, name: String, ty: Val) {
-    trace!("bind", "bound variable `{}` with type `{}`", name, ty);
     self.define(
       Val::Var(ValVar {
         name,
@@ -76,10 +75,14 @@ impl State {
   }
 
   fn define(&mut self, val: Val, ty: Val) {
-    // debug!("define", "defined `{}` with type `{}`", val, ty);
+    trace!("define", "defined `{}` with type `{}`", val, ty);
     self.env.insert(0, val);
     self.var_tys.insert(0, ty);
     self.lvl += 1;
+  }
+
+  fn is_empty(&self) -> bool {
+    self.env.is_empty() && self.var_tys.is_empty()
   }
 }
 
@@ -90,15 +93,17 @@ pub fn elab(prog: Prog) -> Result<()> {
 
 pub fn elab_prog(prog: Prog, state: &mut State) -> Result<()> {
   prog.decls.into_iter().map(|decl| elab_decl(decl, state)).collect::<Result<Vec<_>>>()?;
-  // assert!(env.var_tys.is_empty());
+  assert!(state.is_empty());
+  let ty = elab_tm_inf(prog.ty.clone(), state)?;
+  expected_set(&ty, None)?;
   elab_tm_chk(prog.tm, eval(prog.ty, &state.env), state)?;
   Ok(())
 }
 
-fn elab_decl(decl: Decl, env: &mut State) -> Result<()> {
-  match decl {
-    Decl::Data(data) => elab_data(data, env),
-  }
+fn elab_decl(decl: Decl, state: &mut State) -> Result<()> {
+  state.forget(|state| match decl {
+    Decl::Data(data) => elab_data(data, state),
+  })
 }
 
 fn tms_to_fn(tms: &[Tm], binds: &[Ident], end: Tm) -> Tm {
@@ -133,7 +138,7 @@ fn tel_to_fn(tel: &Tel, end: Tm) -> Tm {
 
 fn elab_data(data: Data, state: &mut State) -> Result<()> {
   let name = data.ident.clone();
-  info!("elab_data", "elaborating data type `{}`", name);
+  debug!("elab_data", "elaborating data type `{}`", name);
   let as_fn = eval(
     ctx_to_fn(
       &data.params,
@@ -145,14 +150,14 @@ fn elab_data(data: Data, state: &mut State) -> Result<()> {
         }),
       ),
     ),
-    &state.env,
+    &[],
   );
   let cstr_clone = data.clone(); // TODO: optimize
 
-  info!("elab_data", "elaborating paramters `{}` of type `{}`", data.params, name);
+  debug!("elab_data", "elaborating paramters `{}` of data type `{}`", data.params, name);
   elab_ctx(data.params, state)?;
 
-  info!("elab_data", "elaborating indices `{}` of type `{}`", data.indices, name);
+  debug!("elab_data", "elaborating indices `{}` of data type `{}`", data.indices, name);
   state.forget(|state| elab_tel(data.indices, state, None))?;
 
   state.bind_global(data.ident, as_fn);
@@ -162,7 +167,7 @@ fn elab_data(data: Data, state: &mut State) -> Result<()> {
     .into_iter()
     .map(|cstr| state.forget(|env| elab_cstr(cstr, &cstr_clone, env)))
     .collect::<Result<Vec<_>>>()?;
-  info!("elab_data", "elaborated data type `{}`", name);
+  debug!("elab_data", "elaborated data type `{}`", name);
   Ok(())
 }
 
@@ -187,14 +192,14 @@ fn params_as_app(left: Tm, tms: &[Tm]) -> Tm {
 
 fn elab_cstr(cstr: Cstr, data: &Data, state: &mut State) -> Result<()> {
   let name = cstr.ident.clone();
-  info!("elab_cstr", "elaborating constructor `{}`", name);
+  debug!("elab_cstr", "elaborating constructor `{}`", name);
   let as_fn = eval(
     ctx_to_fn(&data.params, tel_to_fn(&cstr.args, params_as_app(Tm::Glo(data.ident.clone()), &cstr.params))),
-    &state.env,
+    &[],
   );
   let args_len = cstr.args.binds.len();
 
-  info!("elab_cstr", "elaborating constructor arguments `{}`", cstr.args);
+  debug!("elab_cstr", "elaborating constructor arguments `{}`", cstr.args);
   elab_tel(cstr.args, state, Some(data.level))?;
 
   for i in 0..data.params.binds.len() {
@@ -210,7 +215,7 @@ fn elab_cstr(cstr: Cstr, data: &Data, state: &mut State) -> Result<()> {
   }
 
   let indices_params = &cstr.params[data.params.binds.len()..];
-  info!(
+  debug!(
     "elab_cstr",
     "checking constructor indices `[{}]` match expected types `[{}]`",
     indices_params.iter().map(|x| format!("{x}")).collect::<Vec<String>>().join(", "),
@@ -221,15 +226,16 @@ fn elab_cstr(cstr: Cstr, data: &Data, state: &mut State) -> Result<()> {
   state.bind_global(cstr.ident, as_fn);
 
   // TODO: Termination checking.
-  info!("elab_cstr", "elaborated constructor `{}`", name);
+
+  debug!("elab_cstr", "elaborated constructor `{}`", name);
   Ok(())
 }
 
-fn max_set_lvl(ty: &Val, max_lvl: Option<usize>) -> Result<()> {
+fn expected_set(ty: &Val, max_lvl: Option<usize>) -> Result<()> {
   if let Val::Set(TmSet { level, .. }) = ty {
     if let Some(max_lvl) = max_lvl {
       if *level > max_lvl {
-        return Err(Error::from(ElabErr::CstrLevelTooHigh { tm: ty.clone(), max: max_lvl }));
+        return Err(Error::from(ElabErr::LevelTooHigh { tm: ty.clone(), max: max_lvl }));
       }
     }
     return Ok(());
@@ -243,7 +249,7 @@ fn elab_ctx(ctx: Ctx, state: &mut State) -> Result<()> {
     .into_iter()
     .map(|tm| {
       let ty = elab_tm_inf(tm.clone(), state)?;
-      max_set_lvl(&ty, None)?;
+      expected_set(&ty, None)?;
       Ok(eval(tm, &state.env))
     })
     .collect::<Result<Vec<_>>>()?;
@@ -259,7 +265,7 @@ fn elab_tel(tel: Tel, state: &mut State, max_lvl: Option<usize>) -> Result<()> {
     .zip(tel.binds)
     .map(|(tm, Ident { name, .. })| {
       let ty = elab_tm_inf(tm.clone(), state)?;
-      max_set_lvl(&ty, max_lvl)?;
+      expected_set(&ty, max_lvl)?;
       state.bind(name, eval(tm, &state.env));
       Ok(())
     })
@@ -336,7 +342,7 @@ fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
 fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> bool {
   let ty1_fmt = format!("{ty1}");
   let ty2_fmt = format!("{ty2}");
-  trace!("eq", "checking for type equality of `{}` and `{}`", ty1_fmt, ty2_fmt,);
+  trace!("eq", "test for type equality of `{}` and `{}`", ty1_fmt, ty2_fmt,);
   let eq = match (ty1, ty2) {
     (Val::Set(TmSet { level: level1, .. }), Val::Set(TmSet { level: level2, .. })) => level1 == level2,
     (
@@ -394,12 +400,6 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> bool {
     }
     _ => false,
   };
-  trace!(
-    "eq",
-    "checked for type equality of `{}` and `{}` ({})",
-    ty1_fmt,
-    ty2_fmt,
-    if eq { "they are equal" } else { "they are not equal" }
-  );
+  trace!("eq", "tested that type `{}` and `{}` are {}equal", ty1_fmt, ty2_fmt, if eq { "" } else { "not " });
   eq
 }

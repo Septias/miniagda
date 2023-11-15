@@ -15,14 +15,12 @@ impl ValVar {
 // TODO: Env wrapper
 
 pub fn env_ext_lvl(env: Vec<Val>, lvl: Lvl) -> Vec<Val> {
-  let mut env = env.to_owned();
-  env.push(Val::Var(ValVar::from_lvl(lvl)));
-  env
+  env_ext(env, Val::Var(ValVar::from_lvl(lvl)))
 }
 
 pub fn env_ext(env: Vec<Val>, val: Val) -> Vec<Val> {
   let mut env = env.to_owned();
-  env.push(val);
+  env.insert(0, val);
   env
 }
 
@@ -52,9 +50,8 @@ pub fn eval(tm: Tm, env: &[Val]) -> Val {
     Tm::Glo(x) => Val::Glo(x.clone()),
     Tm::App(TmApp { left, right, span }) => match eval(*left, env) {
       Val::Abs(ValAbs { env, body, .. }) => {
-        let mut n_env = env.clone();
-        n_env.push(eval(*right, &env));
-        eval(body, &n_env)
+        let right = eval(*right, &env);
+        eval(body, &env_ext(env, right))
       }
       v => Val::App(ValApp {
         left: Box::new(v),
