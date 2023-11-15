@@ -76,19 +76,19 @@ pub enum ElabErr {
   ExpectedSetAll { got: Val },
   LevelTooHigh { tm: Val, max: usize },
   ExpectedParam { expected: Ident, got: Tm },
-  TypeMismatch { ty1: Val, ty2: Val },
+  TypeMismatch { ty1: Val, ty2: Val, v1: Val, v2: Val },
   FunctionTypeExpected { tm: Tm, got: Val },
 }
 
 impl Display for ElabErr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      ElabErr::ExpectedSetCtx { got } => write!(f, "expected type of kind Setℓ in context binding, but got {}", got),
-      ElabErr::ExpectedSetAll { got } => write!(f, "expected type of kind Setℓ in ∀ binding, but got {}", got),
-      ElabErr::LevelTooHigh { tm, max } => write!(f, "term {} exceeds set level {}", tm, max),
-      ElabErr::ExpectedParam { expected, got } => write!(f, "expected data type parameter {}, but got {}", expected, got),
-      ElabErr::TypeMismatch { ty1, ty2 } => write!(f, "type mismatch between {} and {}", ty1, ty2),
-      ElabErr::FunctionTypeExpected { tm, got } => write!(f, "expected {} to be a function type, but got {}", tm, got),
+      ElabErr::ExpectedSetCtx { got } => write!(f, "expected type of kind Setℓ in context binding, but got `{}`", got),
+      ElabErr::ExpectedSetAll { got } => write!(f, "expected type of kind Setℓ in ∀ binding, but got `{}`", got),
+      ElabErr::LevelTooHigh { tm, max } => write!(f, "term `{}` exceeds set level `{}`", tm, max),
+      ElabErr::ExpectedParam { expected, got } => write!(f, "expected data type parameter `{}`, but got {}", expected, got),
+      ElabErr::TypeMismatch { ty1, ty2, v1, v2 } => write!(f, "type mismatch between `{}` and `{}`, more specifically `{}` is not `{}`", ty1, ty2, v1, v2),
+      ElabErr::FunctionTypeExpected { tm, got } => write!(f, "expected `{}` to be a function type, but got `{}`", tm, got),
     }
   }
 }

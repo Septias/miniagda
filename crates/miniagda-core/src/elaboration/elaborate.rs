@@ -301,9 +301,9 @@ fn elab_tm_chk(tm: Tm, ty: Val, state: &State) -> Result<()> {
     }
     (tm, ty) => {
       let ity = elab_tm_inf(tm, state)?;
-      if !eq(ity.clone(), ty.clone(), state.lvl) {
-        // TODO: performance
-        return Err(Error::from(ElabErr::TypeMismatch { ty1: ity, ty2: ty }));
+      match eq(ity.clone(), ty.clone(), state.lvl) {
+        Ok(()) => (),
+        Err((v1, v2)) => return Err(Error::from(ElabErr::TypeMismatch { ty1: ity, ty2: ty, v1, v2 })),
       }
     }
   };
@@ -339,12 +339,12 @@ fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
   Ok(ty)
 }
 
-fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> bool {
+fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {
   let ty1_fmt = format!("{ty1}");
   let ty2_fmt = format!("{ty2}");
   trace!("eq", "test for type equality of `{}` and `{}`", ty1_fmt, ty2_fmt,);
-  let eq = match (ty1, ty2) {
-    (Val::Set(TmSet { level: level1, .. }), Val::Set(TmSet { level: level2, .. })) => level1 == level2,
+  match (ty1, ty2) {
+    (Val::Set(TmSet { level: level1, .. }), Val::Set(TmSet { level: level2, .. })) if level1 == level2 => Ok(()),
     (
       Val::Abs(ValAbs {
         ty: ty1, body: body1, env: env1, ..
@@ -352,7 +352,10 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> bool {
       Val::Abs(ValAbs {
         ty: ty2, body: body2, env: env2, ..
       }),
-    ) => eq(*ty1, *ty2, lvl) && eq(eval(body1, &env_ext_lvl(&env1, lvl)), eval(body2, &env_ext_lvl(&env2, lvl)), lvl + 1),
+    ) => {
+      eq(*ty1, *ty2, lvl)?;
+      eq(eval(body1, &env_ext_lvl(&env1, lvl)), eval(body2, &env_ext_lvl(&env2, lvl)), lvl + 1)
+    }
     (
       Val::All(ValAll {
         dom: dom1,
@@ -366,7 +369,10 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> bool {
         env: env2,
         ..
       }),
-    ) => eq(*dom1, *dom2, lvl) && eq(eval(codom1, &env_ext_lvl(&env1, lvl)), eval(codom2, &env_ext_lvl(&env2, lvl)), lvl + 1),
+    ) => {
+      eq(*dom1, *dom2, lvl)?;
+      eq(eval(codom1, &env_ext_lvl(&env1, lvl)), eval(codom2, &env_ext_lvl(&env2, lvl)), lvl + 1)
+    }
     (Val::Abs(ValAbs { env, body, .. }), val) => {
       let var = Val::Var(ValVar::from_lvl(lvl));
       let span = val.span();
@@ -393,13 +399,12 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> bool {
         lvl + 1,
       )
     }
-    (Val::Var(ValVar { lvl: lvl1, .. }), Val::Var(ValVar { lvl: lvl2, .. })) => lvl1 == lvl2,
-    (Val::Glo(ident1), Val::Glo(ident2)) => ident1 == ident2,
+    (Val::Var(ValVar { lvl: lvl1, .. }), Val::Var(ValVar { lvl: lvl2, .. })) if lvl1 == lvl2 => Ok(()),
+    (Val::Glo(ident1), Val::Glo(ident2)) if ident1 == ident2 => Ok(()),
     (Val::App(ValApp { left: left1, right: right1, .. }), Val::App(ValApp { left: left2, right: right2, .. })) => {
-      eq(*left1, *left2, lvl) && eq(*right1, *right2, lvl)
+      eq(*left1, *left2, lvl)?;
+      eq(*right1, *right2, lvl)
     }
-    _ => false,
-  };
-  trace!("eq", "tested that type `{}` and `{}` are {}equal", ty1_fmt, ty2_fmt, if eq { "" } else { "not " });
-  eq
+    (ty1, ty2) => Err((ty1, ty2)),
+  }
 }
