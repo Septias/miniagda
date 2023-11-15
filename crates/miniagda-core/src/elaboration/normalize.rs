@@ -1,78 +1,25 @@
+use crate::diagnostics::span::Span;
+use crate::syntax::core::{Lvl, Tm, TmAbs, TmAll, TmApp, TmVar, Val, ValAbs, ValAll, ValApp, ValVar};
 use crate::trace;
-use crate::{
-  diagnostics::span::Span,
-  syntax::core::{Idx, Lvl, Tm, TmAbs, TmAll, TmApp, TmVar, Val, ValAbs, ValAll, ValApp, ValVar},
-};
-
-impl Lvl {
-  fn as_idx(&self, lvl: Lvl) -> Idx {
-    // TODO!
-    Idx::from(lvl.0.checked_sub(self.0).unwrap().checked_sub(1).unwrap())
-  }
-}
 
 impl ValVar {
   pub fn from_lvl(lvl: Lvl) -> Self {
     ValVar {
-      name: "<γ>".to_owned(),
+      name: "$γ".to_owned(),
       lvl,
       span: Span::dummy(),
     }
   }
 }
 
-pub fn nf(tm: Tm, env: &[Val]) -> Tm {
-  quote(eval(tm, env), Lvl::from(env.len()))
-}
-
-fn quote(val: Val, lvl: Lvl) -> Tm {
-  let val_str = format!("{}", val);
-  let tm = match val {
-    Val::Var(ValVar { name, lvl: x, span }) => Tm::Var(TmVar {
-      name,
-      idx: x.as_idx(lvl),
-      span,
-    }),
-    Val::Glo(x) => Tm::Glo(x),
-    Val::App(ValApp { left, right, span }) => Tm::App(TmApp {
-      left: Box::new(quote(*left, lvl)),
-      right: Box::new(quote(*right, lvl)),
-      span,
-    }),
-    Val::Abs(ValAbs { env, ident, ty, body, span }) => {
-      let mut nenv = env.clone();
-      nenv.push(Val::Var(ValVar::from_lvl(lvl)));
-      Tm::Abs(TmAbs {
-        ident,
-        ty: Box::new(quote(*ty, lvl)),
-        body: Box::new(quote(eval(body, &nenv), lvl + 1)),
-        span,
-      })
-    }
-    Val::All(ValAll {
-      env,
-      ident,
-      dom,
-      codom,
-      span,
-    }) => {
-      let mut nenv = env.clone();
-      nenv.push(Val::Var(ValVar::from_lvl(lvl)));
-      Tm::All(TmAll {
-        ident,
-        dom: Box::new(quote(*dom, lvl)),
-        codom: Box::new(quote(eval(codom, &nenv), lvl + 1)),
-        span,
-      })
-    }
-    Val::Set(set) => Tm::Set(set.clone()),
-  };
-  trace!("qoute", "quoted `{}` to `{}`", val_str, tm);
-  tm
-}
-
 fn env_resolve(env: &[Val], x: TmVar) -> Val {
   // if this panics, implementation is wrong
+  trace!(
+    "env_reosolve",
+    "resolving `{}` from env `[{}]`",
+    x,
+    env.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join(", ")
+  );
   match &env[x.idx.0] {
     // copy name and span from actual var
     Val::Var(ValVar { lvl, .. }) => Val::Var(ValVar {

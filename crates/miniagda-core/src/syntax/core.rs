@@ -203,10 +203,16 @@ impl Display for Val {
   }
 }
 
+impl Display for TmVar {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}{{{}}}", self.name, self.idx.0)
+  }
+}
+
 impl Display for Tm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Tm::Var(TmVar { name, idx, span: _ }) => write!(f, "{}{{{}}}", name, idx.0),
+      Tm::Var(x) => write!(f, "{}", x),
       Tm::Glo(x) => write!(f, "{}", x.name),
       Tm::App(TmApp { left, right, .. }) => write!(f, "({} {})", left, right),
       Tm::Abs(TmAbs { ident, ty, body, .. }) => write!(f, "(λ ({} : {}) → {})", ident, ty, body),

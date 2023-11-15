@@ -34,10 +34,7 @@ impl Env {
         if self.glo.contains(&var) {
           Ok(core::Tm::Glo(var))
         } else {
-          Err(Error::from(SurfaceToCoreErr::UnboundName {
-            name: var.name,
-            span: var.span,
-          }))
+          Err(Error::from(SurfaceToCoreErr::UnboundName { name: var.name, span: var.span }))
         }
       }
     }
@@ -66,11 +63,7 @@ impl Env {
 pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
   let mut env = Env::default();
   let prog = core::Prog {
-    decls: prog
-      .decls
-      .into_iter()
-      .map(|decl| surf_to_core_decl(decl, &mut env))
-      .collect::<Result<Vec<_>>>()?,
+    decls: prog.decls.into_iter().map(|decl| surf_to_core_decl(decl, &mut env)).collect::<Result<Vec<_>>>()?,
     ty: surf_to_core_tm(prog.ty, &mut env)?,
     tm: surf_to_core_tm(prog.tm, &mut env)?,
     span: prog.span.clone(),
@@ -94,11 +87,7 @@ fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
 
   let indices = env.forget_vars(|env| surf_to_core_tel(data.indices, env))?;
 
-  let cstrs = data
-    .cstrs
-    .into_iter()
-    .map(|cstr| surf_to_core_cstr(cstr, env))
-    .collect::<Result<Vec<_>>>()?;
+  let cstrs = data.cstrs.into_iter().map(|cstr| surf_to_core_cstr(cstr, env)).collect::<Result<Vec<_>>>()?;
 
   Ok(core::Data {
     ident: data.ident,

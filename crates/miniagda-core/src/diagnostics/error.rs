@@ -1,4 +1,4 @@
-use crate::syntax::core::Tm;
+use crate::syntax::core::{Tm, Val};
 
 use super::span::Span;
 
@@ -33,11 +33,11 @@ pub enum LexErr {
 #[derive(Clone, Debug)]
 pub enum ElabErr {
   ExpectedSetCtx { span: Span, got: Tm },
-  ExpectedSetAll { span: Span, got: Tm },
+  ExpectedSetAll { span: Span, got: Val },
   CstrLevelTooHigh { span: Span, max: usize },
   ExpectedParam { span: Span, got: Tm },
-  TypeMismatch { ty1: Tm, ty2: Tm },
-  FunctionTypeExpected { span: Span, got: Tm },
+  TypeMismatch { ty1: Val, ty2: Val },
+  FunctionTypeExpected { span: Span, got: Val },
 }
 
 macro_rules! impl_from_diag_enum {

@@ -104,12 +104,7 @@ impl Display for Ctx {
     write!(
       f,
       "{}",
-      self
-        .ctx
-        .iter()
-        .map(|(x, tm)| format!("({} : {})", x.name, tm))
-        .collect::<Vec<String>>()
-        .join(" ")
+      self.ctx.iter().map(|(x, tm)| format!("({} : {})", x.name, tm)).collect::<Vec<String>>().join(" ")
     )
   }
 }

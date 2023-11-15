@@ -70,3 +70,9 @@ impl_spanned_struct!(core::Cstr);
 impl_spanned_struct!(core::Data);
 impl_spanned_enum!(core::Decl; Data);
 impl_spanned_struct!(core::Prog);
+
+impl_spanned_struct!(core::ValVar);
+impl_spanned_struct!(core::ValApp);
+impl_spanned_struct!(core::ValAbs);
+impl_spanned_struct!(core::ValAll);
+impl_spanned_enum!(core::Val; Var, Glo, App, Abs, All, Set);

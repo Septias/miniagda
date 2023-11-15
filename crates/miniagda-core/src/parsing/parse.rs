@@ -123,9 +123,7 @@ fn roll_app(left: Tm, right: Tm) -> Tm {
   let left_span = left.span();
   let right_span = right.span();
   match right {
-    Tm::App(TmApp {
-      left: left1, right: right1, ..
-    }) => Tm::App(TmApp {
+    Tm::App(TmApp { left: left1, right: right1, .. }) => Tm::App(TmApp {
       left: Box::new(roll_app(left, *left1)),
       right: right1,
       span: Span {
