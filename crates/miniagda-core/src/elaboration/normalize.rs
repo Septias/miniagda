@@ -1,5 +1,5 @@
 use crate::diagnostics::span::Span;
-use crate::syntax::core::{Lvl, Tm, TmAbs, TmAll, TmApp, TmVar, Val, ValAbs, ValAll, ValApp, ValVar};
+use crate::syntax::core::{Env, Lvl, Tm, TmAbs, TmAll, TmApp, TmVar, Val, ValAbs, ValAll, ValApp, ValVar};
 use crate::trace;
 
 impl ValVar {
@@ -7,51 +7,50 @@ impl ValVar {
     ValVar {
       name: "$γ".to_owned(),
       lvl,
-      span: Span::dummy(),
+      span: Span::default(),
     }
   }
 }
 
-// TODO: Env wrapper
+impl Env {
+  pub fn ext_lvl(&mut self, lvl: Lvl) -> Self {
+    self.ext(Val::Var(ValVar::from_lvl(lvl)))
+  }
+  pub fn ext(&mut self, val: Val) -> Self {
+    let mut env = self.to_owned();
+    env.0.insert(0, val);
+    env
+  }
 
-pub fn env_ext_lvl(env: &Vec<Val>, lvl: Lvl) -> Vec<Val> {
-  env_ext(env, Val::Var(ValVar::from_lvl(lvl)))
-}
-
-pub fn env_ext(env: &Vec<Val>, val: Val) -> Vec<Val> {
-  let mut env = env.to_owned();
-  env.insert(0, val);
-  env
-}
-
-fn env_resolve(env: &[Val], x: TmVar) -> Val {
-  // if this panics, implementation is wrong
-  trace!(
-    "env_reosolve",
-    "resolving `{}` from env `[{}]`",
-    x,
-    env.iter().map(|v| format!("{v}")).collect::<Vec<String>>().join(", ")
-  );
-  match &env[x.idx.0] {
-    // copy name and span from actual var
-    Val::Var(ValVar { lvl, .. }) => Val::Var(ValVar {
-      name: x.name,
-      lvl: *lvl,
-      span: x.span,
-    }),
-    v => v.clone(),
+  fn resolve(&self, x: TmVar) -> Val {
+    // if this panics, implementation is wrong
+    trace!(
+      "env_reosolve",
+      "resolving `{}` from env `[{}]`",
+      x,
+      self.0.iter().map(|v| format!("{v}")).collect::<Vec<String>>().join(", ")
+    );
+    match &self.0[x.idx.0] {
+      // copy name and span from actual var
+      Val::Var(ValVar { lvl, .. }) => Val::Var(ValVar {
+        name: x.name,
+        lvl: *lvl,
+        span: x.span,
+      }),
+      v => v.clone(),
+    }
   }
 }
 
-pub fn eval(tm: Tm, env: &[Val]) -> Val {
+pub fn eval(tm: Tm, env: &Env) -> Val {
   let tm_str = format!("{tm}");
   let val = match tm {
-    Tm::Var(x) => env_resolve(env, x),
+    Tm::Var(x) => env.resolve(x),
     Tm::Glo(x) => Val::Glo(x.clone()),
     Tm::App(TmApp { left, right, span }) => match eval(*left, env) {
-      Val::Abs(ValAbs { env, body, .. }) => {
+      Val::Abs(ValAbs { mut env, body, .. }) => {
         let right = eval(*right, &env);
-        eval(body, &env_ext(&env, right))
+        eval(body, &env.ext(right))
       }
       v => Val::App(ValApp {
         left: Box::new(v),
@@ -60,14 +59,14 @@ pub fn eval(tm: Tm, env: &[Val]) -> Val {
       }),
     },
     Tm::Abs(TmAbs { ident, ty, body, span }) => Val::Abs(ValAbs {
-      env: env.to_vec(),
+      env: env.clone() ,
       ident,
       ty: Box::new(eval(*ty, env)),
       body: *body,
       span,
     }),
     Tm::All(TmAll { ident, dom, codom, span }) => Val::All(ValAll {
-      env: env.to_vec(),
+      env: env.clone(),
       ident,
       dom: Box::new(eval(*dom, env)),
       codom: *codom,

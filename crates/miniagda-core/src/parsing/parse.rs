@@ -57,23 +57,17 @@ peg::parser! {
             Ctx { ctx, span: Span { file: file.to_string(), start, end } }
           }
 
-        rule cstr_rhs(name: &str) -> (Ctx, Vec<Tm>)
-          = ctx:ctx1() [Tok(Arrow)] ident:id() tm:tm()? {?
-            if (name != ident.name) {
-              return Err("type of data type constructors are expected to end in data type itself")
-            }
-            Ok((ctx, tm.map_or_else(Vec::new, unroll_app)))
+        rule cstr_rhs() -> (Ctx, Vec<Tm>)
+          = ctx:ctx1() [Tok(Arrow)] tm:tm() {?
+            Ok((ctx, unroll_app(tm)))
           }
-          / pos:position!() ident:id() tm:tm()? {?
-            if (name != ident.name) {
-              return Err("type of data type constructors are expected to end in data type itself")
-            }
-            Ok((Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, tm.map_or_else(Vec::new, unroll_app)))
+          / pos:position!() tm:tm() {?
+            Ok((Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, unroll_app(tm)))
           }
 
       rule cstr(data : &Ident) -> Cstr
-        = start:position!() [Item] ident:id() [Tok(Colon)] rhs:cstr_rhs(&data.name) end:position!() {
-          Cstr { ident, data: data.clone(), args: rhs.0, params: rhs.1, span: Span { file: file.to_string(), start, end } }
+        = start:position!() [Item] ident:id() [Tok(Colon)] rhs:cstr_rhs() end:position!() {
+          Cstr { ident, args: rhs.0, params: rhs.1, span: Span { file: file.to_string(), start, end } }
         }
 
       rule indices_and_level() -> (Ctx, usize)

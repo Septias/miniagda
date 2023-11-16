@@ -3,13 +3,13 @@ use std::env;
 use env_logger::Env;
 use miniagda_core::diagnostics::error::Error;
 use miniagda_core::diagnostics::Result;
-use miniagda_core::{elaboration::elaborate::elab, parsing::parse, syntax::surface_to_core};
+use miniagda_core::{elaboration::elab, parsing::parse, syntax::surface_to_core};
 
 fn run(path: String) -> Result<()> {
   let prog = parse(path)?;
-  // println!("-- surface -------------------------------------------------------\n\n{}\n", &prog);
+  println!("-- surface -------------------------------------------------------\n\n{}\n", &prog);
   let prog = surface_to_core(prog)?;
-  // println!("-- core ----------------------------------------------------------\n\n{}\n", &prog);
+  println!("-- core ----------------------------------------------------------\n\n{}\n", &prog);
   elab(prog)
 }
 

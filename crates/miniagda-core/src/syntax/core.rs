@@ -76,7 +76,6 @@ pub struct Tel {
 #[derive(Clone, Debug)]
 pub struct Cstr {
   pub ident: Ident,
-  pub data: Ident,
   pub args: Tel,
   pub params: Vec<Tm>,
   pub span: Span,
@@ -119,9 +118,12 @@ pub struct ValApp {
   pub span: Span,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct Env(pub Vec<Val>);
+
 #[derive(Clone, Debug)]
 pub struct ValAbs {
-  pub env: Vec<Val>,
+  pub env: Env,
   pub ident: Ident,
   pub ty: Box<Val>,
   pub body: Tm,
@@ -130,7 +132,7 @@ pub struct ValAbs {
 
 #[derive(Clone, Debug)]
 pub struct ValAll {
-  pub env: Vec<Val>,
+  pub env: Env,
   pub ident: Ident,
   pub dom: Box<Val>,
   pub codom: Tm,
@@ -186,14 +188,14 @@ impl Display for Val {
         f,
         "(λ[{}]({} : {}) → {})",
         ident,
-        env.iter().map(|val| format!("{val}")).collect::<Vec<String>>().join(", "),
+        env.0.iter().map(|val| format!("{val}")).collect::<Vec<String>>().join(", "),
         ty,
         body
       ),
       Val::All(ValAll { env, ident, dom, codom, .. }) => write!(
         f,
         "(∀[{}]({} : {}) → {})",
-        env.iter().map(|val| format!("{val}")).collect::<Vec<String>>().join(", "),
+        env.0.iter().map(|val| format!("{val}")).collect::<Vec<String>>().join(", "),
         ident,
         dom,
         codom
@@ -260,11 +262,10 @@ impl Display for Cstr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
       f,
-      "{} : {}{}{} {}",
+      "{} : {}{}{}",
       self.ident,
       self.args,
       if self.args.tms.is_empty() { "" } else { " → " },
-      self.data.name,
       self.params.iter().map(|tm| format!("{tm}")).collect::<Vec<String>>().join(" ")
     )
   }

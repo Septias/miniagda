@@ -17,6 +17,6 @@ pub fn parse<P: AsRef<Path>>(path: P) -> Result<Prog> {
   let parsed = parse::parser::prog(&indented, &file_path).map_err(|e| ParseErr::UnexpectedToken {
     span: e.location,
     expected: e.expected.to_string(),
-  })?;
+  })?; // map errors correctly
   Ok(parsed)
 }

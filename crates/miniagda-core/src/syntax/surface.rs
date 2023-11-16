@@ -52,7 +52,6 @@ pub struct Ctx {
 #[derive(Clone, Debug)]
 pub struct Cstr {
   pub ident: Ident,
-  pub data: Ident,
   pub args: Ctx,
   pub params: Vec<Tm>,
   pub span: Span,
@@ -113,11 +112,10 @@ impl Display for Cstr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
       f,
-      "{} : {}{}{} {}",
+      "{} : {}{} {}",
       self.ident,
       self.args,
       if self.args.ctx.is_empty() { "" } else { " → " },
-      self.data.name,
       self.params.iter().map(|tm| format!("{tm}")).collect::<Vec<String>>().join(" ")
     )
   }

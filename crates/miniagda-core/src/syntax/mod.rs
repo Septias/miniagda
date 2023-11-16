@@ -122,13 +122,12 @@ fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
       surf_to_core_tel(cstr.args, env),
       cstr.params.into_iter().map(|tm| surf_to_core_tm(tm, env)).collect::<Result<Vec<_>>>(),
     )
-  });
+  });  
 
   env.add_glo(cstr.ident.clone())?;
 
   Ok(core::Cstr {
     ident: cstr.ident,
-    data: cstr.data,
     args: args?,
     params: params?,
     span: cstr.span,
