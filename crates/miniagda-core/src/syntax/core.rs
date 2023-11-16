@@ -152,6 +152,16 @@ pub enum Val {
 // ------------------------------------------------------------------------------------------------
 // trait impls
 
+impl From<Lvl> for ValVar {
+  fn from(lvl: Lvl) -> Self {
+    ValVar {
+      name: "$γ".to_owned(),
+      lvl,
+      span: Span::default(),
+    }
+  }
+}
+
 impl From<usize> for Idx {
   fn from(value: usize) -> Self {
     Idx(value)

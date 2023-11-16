@@ -1,20 +1,9 @@
-use crate::diagnostics::span::Span;
 use crate::syntax::core::{Env, Lvl, Tm, TmAbs, TmAll, TmApp, TmVar, Val, ValAbs, ValAll, ValApp, ValVar};
 use crate::trace;
 
-impl ValVar {
-  pub fn from_lvl(lvl: Lvl) -> Self {
-    ValVar {
-      name: "$γ".to_owned(),
-      lvl,
-      span: Span::default(),
-    }
-  }
-}
-
 impl Env {
   pub fn ext_lvl(&mut self, lvl: Lvl) -> Self {
-    self.ext(Val::Var(ValVar::from_lvl(lvl)))
+    self.ext(Val::Var(ValVar::from(lvl)))
   }
   pub fn ext(&mut self, val: Val) -> Self {
     let mut env = self.to_owned();

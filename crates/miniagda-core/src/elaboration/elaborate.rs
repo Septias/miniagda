@@ -392,7 +392,7 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {
       eq(eval(codom1, &env1.ext_lvl(lvl)), eval(codom2, &env2.ext_lvl(lvl)), lvl + 1)
     }
     (Val::Abs(ValAbs { mut env, body, .. }), val) => {
-      let var = Val::Var(ValVar::from_lvl(lvl));
+      let var = Val::Var(ValVar::from(lvl));
       let span = val.span();
       eq(
         eval(body, &env.ext_lvl(lvl)),
@@ -405,7 +405,7 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {
       )
     }
     (val, Val::Abs(ValAbs { mut env, body, .. })) => {
-      let var = Val::Var(ValVar::from_lvl(lvl));
+      let var = Val::Var(ValVar::from(lvl));
       let span = val.span();
       eq(
         Val::App(ValApp {
