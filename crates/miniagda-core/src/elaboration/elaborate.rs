@@ -236,7 +236,7 @@ fn elab_cstr(cstr: Cstr, data: &Data, indices_types: &[Val], state: &mut State) 
 
   let data_indices_len = data.indices.binds.len();
   for i in 0..data_indices_len {
-    if let Some(_) = indices.get(i) {
+    if indices.get(i).is_some() {
       continue;
     }
 
@@ -255,7 +255,7 @@ fn elab_cstr(cstr: Cstr, data: &Data, indices_types: &[Val], state: &mut State) 
     indices.iter().map(|x| format!("{x}")).collect::<Vec<String>>().join(", "),
     data.indices.tms.iter().map(|x| format!("{x}")).collect::<Vec<String>>().join(", ")
   );
-  elab_indices(indices, &indices_types, &data.indices.binds, state)?;
+  elab_indices(indices, indices_types, &data.indices.binds, state)?;
 
   state.bind_global(cstr.ident, as_fn);
 
@@ -298,7 +298,7 @@ fn elab_indices(tms: &[Tm], tys: &[Val], binds: &[Ident], state: &State) -> Resu
   }
   elab_tm_chk(tms[0].clone(), tys[0].clone(), state)?;
   if binds.len() > 1 {
-    return elab_indices(tms, &tys[1..], &binds[1..], state);
+    return elab_indices(&tms[1..], &tys[1..], &binds[1..], state);
   }
   Ok(())
 }
