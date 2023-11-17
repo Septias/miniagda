@@ -151,13 +151,11 @@ pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut
     let span_end = Span { start: span.end, end: span.end };
     let span_col = span.start - last_newline;
 
-    // Skip newlines but remember their positions.
     if is_newline(&tok) {
       last_newline = span.end;
       continue;
     }
 
-    // Pop indents larger than the start of this token and add corresponding end-tokens.
     let mut drop = 0;
     for i in indent_stack.iter().copied().rev() {
       if i <= span_col {
@@ -170,16 +168,13 @@ pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut
       toks.push(Spanned::new(Braced::End, span_end.clone()));
     }
 
-    // If the current token starts a new item, push a separation token.
     let started_new_item = span_col == *indent_stack.last().unwrap();
     if started_new_item {
       toks.push(Spanned::new(Braced::Item, span_end.clone()));
     }
 
-    // If the previous token started a block, push a new indent from the current token.
     if waiting {
       if drop > 0 || started_new_item {
-        // Terminate an empty block.
         toks.push(Spanned::new(Braced::End, span_end.clone()));
       } else {
         toks.push(Spanned::new(Braced::Item, span_end.clone()));
@@ -190,17 +185,14 @@ pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut
 
     let is_start = is_block_start(&tok);
 
-    // Push the current token into the output token stream.
     toks.push(Spanned::new(Braced::Token(tok), span.clone()));
 
-    // If the current token is a start token, start a new block.
     if is_start {
       toks.push(Spanned::new(Braced::Begin, span_end));
       waiting = true;
     }
   }
 
-  // Close all blocks which are still open at the end of the token stream.
   let span_end = Span {
     start: spanned.src.len(),
     end: spanned.src.len(),

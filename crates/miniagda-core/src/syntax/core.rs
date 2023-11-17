@@ -149,9 +149,6 @@ pub enum Val {
   Set(TmSet),
 }
 
-// ------------------------------------------------------------------------------------------------
-// trait impls
-
 impl From<Lvl> for ValVar {
   fn from(lvl: Lvl) -> Self {
     ValVar {
