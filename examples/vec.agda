@@ -1,3 +1,6 @@
+data Eq (A : Set) (x : A) : (_ : A) → Set1 where
+  refl : Eq A x x
+
 data T : Set where
   tt : T
 
@@ -5,9 +8,10 @@ data N : Set where
   zero : N 
   suc  : (n : N) → N
 
-data Vec (A : Set) : (m : N) → Set where
+data Vec (A : Set) : (_ : N) → Set where
   nil  : Vec A zero
-  cons : (n : N) (vec : Vec A n) (a : A) → Vec A (suc n)
+  cons : (n : N) (_ : Vec A n) (_ : A) → Vec A (suc n)
 
-_ : Vec T (suc zero)
-_ = cons {A = T} zero (nil {A = T}) tt 
+
+_ : Vec T (suc zero) 
+_ = cons {A = T} zero (nil {A = T}) tt

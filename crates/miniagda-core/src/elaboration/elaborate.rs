@@ -55,9 +55,11 @@ impl State {
   pub fn forget<T>(&mut self, f: impl FnOnce(&mut State) -> T) -> T {
     let len_tys = self.types.len();
     let len_env = self.env.0.len();
+    let lvl = self.lvl;
     let res = f(self);
     self.types.drain(0..(self.types.len() - len_tys));
     self.env.0.drain(0..(self.env.0.len() - len_env));
+    self.lvl = lvl;
     res
   }
 
@@ -154,17 +156,17 @@ fn elab_data(data: Data, state: &mut State) -> Result<()> {
   let cstr_clone = data.clone(); // TODO: optimize
 
   debug!("elab_data", "elaborating parameters `{}` of data type `{}`", data.params, name);
-  elab_ctx(data.params, state)?;
+  elab_binds(data.params.tms, data.params.binds, None, state)?;
 
   debug!("elab_data", "elaborating indices `{}` of data type `{}`", data.indices, name);
-  state.forget(|state| elab_tel(data.indices, state, None))?;
+  let indices_types = state.forget(|state| elab_binds(data.indices.tms, data.indices.binds, None, state))?;
 
   state.bind_global(data.ident, as_fn);
 
   data
     .cstrs
     .into_iter()
-    .map(|cstr| state.forget(|env| elab_cstr(cstr, &cstr_clone, env)))
+    .map(|cstr| state.forget(|env| elab_cstr(cstr, &cstr_clone, &indices_types, env)))
     .collect::<Result<Vec<_>>>()?;
   debug!("elab_data", "elaborated data type `{}`", name);
   Ok(())
@@ -189,7 +191,7 @@ fn params_as_app(left: Tm, tms: &[Tm]) -> Tm {
   )
 }
 
-fn elab_cstr(cstr: Cstr, data: &Data, state: &mut State) -> Result<()> {
+fn elab_cstr(cstr: Cstr, data: &Data, indices_types: &[Val], state: &mut State) -> Result<()> {
   let name = cstr.ident.clone();
   debug!("elab_cstr", "elaborating constructor `{}`", name);
 
@@ -215,28 +217,45 @@ fn elab_cstr(cstr: Cstr, data: &Data, state: &mut State) -> Result<()> {
   let args_len = cstr.args.binds.len();
 
   debug!("elab_cstr", "elaborating constructor arguments `{}`", cstr.args);
-  elab_tel(cstr.args, state, Some(data.level))?;
+  elab_binds(cstr.args.tms, cstr.args.binds, Some(data.level), state)?;
 
-  for (i, param) in params.iter().enumerate().take(data.params.binds.len()) {
-    if let Tm::Var(TmVar { idx, name: _, .. }) = param {
-      if idx.0 == i + args_len {
+  let data_params_len = data.params.binds.len();
+  for i in 0..data_params_len {
+    if let Some(Tm::Var(TmVar { idx, name: _, .. })) = params.get(i) {
+      if idx.0 == data_params_len + args_len - (i + 1) {
         continue;
       }
     }
     return Err(Error::from(ElabErr::ExpectedParam {
-      expected: data.params.binds[i + args_len].clone(),
-      got: param.clone(),
+      expected: data.params.binds[i].clone(),
+      got: params.get(i).cloned(),
     }));
   }
 
-  let indices_params = &params[data.params.binds.len()..];
+  let indices = &params[data_params_len..];
+
+  let data_indices_len = data.indices.binds.len();
+  for i in 0..data_indices_len {
+    if let Some(_) = indices.get(i) {
+      continue;
+    }
+
+    return Err(Error::from(ElabErr::ExpectedIndex {
+      expected: data.indices.binds[i].clone(),
+      got: indices.get(i).cloned(),
+    }));
+  }
+  if let Some(tm) = indices.get(data_indices_len) {
+    return Err(Error::from(ElabErr::UnexpectedArg { got: tm.clone() }));
+  }
+
   debug!(
     "elab_cstr",
     "checking constructor indices `[{}]` match expected types `[{}]`",
-    indices_params.iter().map(|x| format!("{x}")).collect::<Vec<String>>().join(", "),
+    indices.iter().map(|x| format!("{x}")).collect::<Vec<String>>().join(", "),
     data.indices.tms.iter().map(|x| format!("{x}")).collect::<Vec<String>>().join(", ")
   );
-  elab_tms_chk(indices_params, &data.indices.tms, &data.indices.binds, state)?;
+  elab_indices(indices, &indices_types, &data.indices.binds, state)?;
 
   state.bind_global(cstr.ident, as_fn);
 
@@ -258,44 +277,28 @@ fn expected_set(ty: &Val, max_lvl: Option<usize>) -> Result<()> {
   Err(Error::from(ElabErr::ExpectedSetCtx { got: ty.clone() }))
 }
 
-fn elab_ctx(ctx: Ctx, state: &mut State) -> Result<()> {
-  let tys_lvls = ctx
-    .tms
+fn elab_binds(tms: Vec<Tm>, binds: Vec<Ident>, max_lvl: Option<usize>, state: &mut State) -> Result<Vec<Val>> {
+  tms
     .into_iter()
-    .map(|tm| {
-      let ty = elab_tm_inf(tm.clone(), state)?;
-      expected_set(&ty, None)?;
-      Ok(eval(tm, &state.env))
-    })
-    .collect::<Result<Vec<_>>>()?;
-
-  tys_lvls.into_iter().zip(ctx.binds).for_each(|(ty, Ident { name, .. })| state.bind(name, ty));
-  Ok(())
-}
-
-fn elab_tel(tel: Tel, state: &mut State, max_lvl: Option<usize>) -> Result<()> {
-  tel
-    .tms
-    .into_iter()
-    .zip(tel.binds)
+    .zip(binds)
     .map(|(tm, Ident { name, .. })| {
       let ty = elab_tm_inf(tm.clone(), state)?;
       expected_set(&ty, max_lvl)?;
-      state.bind(name, eval(tm, &state.env));
-      Ok(())
+      let tm = eval(tm, &state.env);
+      state.bind(name, tm.clone());
+      Ok(tm)
     })
-    .collect::<Result<Vec<_>>>()?;
-  Ok(())
+    .collect::<Result<Vec<_>>>()
 }
 
-fn elab_tms_chk(tms: &[Tm], tys: &[Tm], binds: &[Ident], state: &State) -> Result<()> {
+fn elab_indices(tms: &[Tm], tys: &[Val], binds: &[Ident], state: &State) -> Result<()> {
   assert!(tms.len() == binds.len() && binds.len() == tms.len());
   if tms.is_empty() {
     return Ok(());
   }
-  elab_tm_chk(tms[0].clone(), eval(tys[0].clone(), &state.env), state)?;
+  elab_tm_chk(tms[0].clone(), tys[0].clone(), state)?;
   if binds.len() > 1 {
-    return elab_tms_chk(tms, &tys[1..], &binds[1..], state);
+    return elab_indices(tms, &tys[1..], &binds[1..], state);
   }
   Ok(())
 }

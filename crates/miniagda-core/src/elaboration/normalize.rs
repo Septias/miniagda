@@ -12,9 +12,8 @@ impl Env {
   }
 
   fn resolve(&self, x: TmVar) -> Val {
-    // if this panics, implementation is wrong
     trace!(
-      "env_reosolve",
+      "resolve",
       "resolving `{}` from env `[{}]`",
       x,
       self.0.iter().map(|v| format!("{v}")).collect::<Vec<String>>().join(", ")
@@ -48,7 +47,7 @@ pub fn eval(tm: Tm, env: &Env) -> Val {
       }),
     },
     Tm::Abs(TmAbs { ident, ty, body, span }) => Val::Abs(ValAbs {
-      env: env.clone() ,
+      env: env.clone(),
       ident,
       ty: Box::new(eval(*ty, env)),
       body: *body,

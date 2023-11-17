@@ -100,15 +100,17 @@ fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
 }
 
 fn surf_to_core_ctx(ctx: surface::Ctx, env: &mut Env) -> Result<core::Ctx> {
-  let (binds, tms): (Vec<Ident>, Vec<core::Tm>) = ctx
+  let (binds, tms) = ctx
     .ctx
     .into_iter()
-    .map(|(x, tm)| Ok((x, surf_to_core_tm(tm, env)?)))
+    .map(|(x, tm)| {
+      let tm = surf_to_core_tm(tm, env)?;
+      env.add_var(x.clone());
+      Ok((x, tm))
+    })
     .collect::<Result<Vec<_>>>()?
     .into_iter()
     .unzip();
-
-  binds.iter().for_each(|i| env.add_var(i.clone()));
   Ok(core::Ctx {
     binds,
     tms,
@@ -122,7 +124,7 @@ fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
       surf_to_core_tel(cstr.args, env),
       cstr.params.into_iter().map(|tm| surf_to_core_tm(tm, env)).collect::<Result<Vec<_>>>(),
     )
-  });  
+  });
 
   env.add_glo(cstr.ident.clone())?;
 
