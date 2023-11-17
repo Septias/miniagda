@@ -67,6 +67,18 @@ pub struct Data {
   pub span: Span,
 }
 
+
+#[derive(Clone, Debug)]
+pub struct Func {
+  pub ident: Ident,
+  pub params: Ctx,
+  pub indices: Ctx,
+  pub level: usize,
+  pub cstrs: Vec<Cstr>,
+  pub span: Span,
+}
+
+
 #[derive(Clone, Debug)]
 pub enum Decl {
   Data(Data),

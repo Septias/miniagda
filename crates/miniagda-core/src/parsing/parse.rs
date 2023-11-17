@@ -46,6 +46,9 @@ peg::parser! {
 
         rule bind() -> (Ident, Tm)
           = [Tok(ParenL)] ident:id() [Tok(Colon)] tm:tm() [Tok(ParenR)] { (ident, tm) }
+          / [Tok(Arrow)]? pos:position!() tm:tm() &[Tok(Arrow)] {
+            (Ident { span: Span { file: file.to_string(), start: pos, end: pos }, name: "".to_owned() }, tm)
+          }
 
         rule ctx() -> Ctx
           = start:position!() binds:bind()* end:position!() {
@@ -62,7 +65,7 @@ peg::parser! {
             Ok((ctx, unroll_app(tm)))
           }
           / pos:position!() tm:tm() {?
-            Ok((Ctx { binds: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, unroll_app(tm)))
+            Ok((Ctx { binds: vec![], span: Span{ file: file.to_string(), start: pos, end: pos } }, unroll_app(tm)))
           }
 
       rule cstr(data : &Ident) -> Cstr
