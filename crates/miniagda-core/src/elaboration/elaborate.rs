@@ -156,10 +156,10 @@ fn elab_data(data: Data, state: &mut State) -> Result<()> {
   let cstr_clone = data.clone(); // TODO: optimize
 
   debug!("elab_data", "elaborating parameters `{}` of data type `{}`", data.params, name);
-  elab_binds(data.params.tms, data.params.binds, None, state)?;
+  elab_binds(data.params.binds, data.params.tms, None, state)?;
 
   debug!("elab_data", "elaborating indices `{}` of data type `{}`", data.indices, name);
-  let indices_types = state.forget(|state| elab_binds(data.indices.tms, data.indices.binds, None, state))?;
+  let indices_types = state.forget(|state| elab_binds(data.indices.binds, data.indices.tms, None, state))?;
 
   state.bind_global(data.ident, as_fn);
 
@@ -217,7 +217,7 @@ fn elab_cstr(cstr: Cstr, data: &Data, indices_types: &[Val], state: &mut State) 
   let args_len = cstr.args.binds.len();
 
   debug!("elab_cstr", "elaborating constructor arguments `{}`", cstr.args);
-  elab_binds(cstr.args.tms, cstr.args.binds, Some(data.level), state)?;
+  elab_binds(cstr.args.binds, cstr.args.tms, Some(data.level), state)?;
 
   let data_params_len = data.params.binds.len();
   for i in 0..data_params_len {
@@ -277,11 +277,11 @@ fn expected_set(ty: &Val, max_lvl: Option<usize>) -> Result<()> {
   Err(Error::from(ElabErr::ExpectedSetCtx { got: ty.clone() }))
 }
 
-fn elab_binds(tms: Vec<Tm>, binds: Vec<Ident>, max_lvl: Option<usize>, state: &mut State) -> Result<Vec<Val>> {
-  tms
+fn elab_binds(binds: Vec<Ident>, tms: Vec<Tm>, max_lvl: Option<usize>, state: &mut State) -> Result<Vec<Val>> {
+  binds
     .into_iter()
-    .zip(binds)
-    .map(|(tm, Ident { name, .. })| {
+    .zip(tms)
+    .map(|(Ident { name, .. }, tm)| {
       let ty = elab_tm_inf(tm.clone(), state)?;
       expected_set(&ty, max_lvl)?;
       let tm = eval(tm, &state.env);

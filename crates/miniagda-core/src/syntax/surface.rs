@@ -45,7 +45,7 @@ pub enum Tm {
 
 #[derive(Clone, Debug)]
 pub struct Ctx {
-  pub ctx: Vec<(Ident, Tm)>,
+  pub binds: Vec<(Ident, Tm)>,
   pub span: Span,
 }
 
@@ -103,7 +103,7 @@ impl Display for Ctx {
     write!(
       f,
       "{}",
-      self.ctx.iter().map(|(x, tm)| format!("({} : {})", x.name, tm)).collect::<Vec<String>>().join(" ")
+      self.binds.iter().map(|(x, tm)| format!("({} : {})", x.name, tm)).collect::<Vec<String>>().join(" ")
     )
   }
 }
@@ -115,7 +115,7 @@ impl Display for Cstr {
       "{} : {}{} {}",
       self.ident,
       self.args,
-      if self.args.ctx.is_empty() { "" } else { " → " },
+      if self.args.binds.is_empty() { "" } else { " → " },
       self.params.iter().map(|tm| format!("{tm}")).collect::<Vec<String>>().join(" ")
     )
   }
@@ -127,10 +127,10 @@ impl Display for Data {
       f,
       "data {}{}{} : {}{}Set{} where\n{}",
       self.ident,
-      if self.params.ctx.is_empty() { "" } else { " " },
+      if self.params.binds.is_empty() { "" } else { " " },
       self.params,
       self.indices,
-      if self.indices.ctx.is_empty() { "" } else { " → " },
+      if self.indices.binds.is_empty() { "" } else { " → " },
       if self.level == 0 { String::new() } else { self.level.to_string() },
       self.cstrs.iter().map(|cstr| format!("  {cstr}")).collect::<Vec<String>>().join("\n")
     )

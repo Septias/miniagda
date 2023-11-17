@@ -48,13 +48,13 @@ peg::parser! {
           = [Tok(ParenL)] ident:id() [Tok(Colon)] tm:tm() [Tok(ParenR)] { (ident, tm) }
 
         rule ctx() -> Ctx
-          = start:position!() ctx:bind()* end:position!() {
-            Ctx { ctx, span: Span { file: file.to_string(), start, end } }
+          = start:position!() binds:bind()* end:position!() {
+            Ctx { binds, span: Span { file: file.to_string(), start, end } }
           }
 
         rule ctx1() -> Ctx
-          = start:position!() ctx:bind()+ end:position!() {
-            Ctx { ctx, span: Span { file: file.to_string(), start, end } }
+          = start:position!() binds:bind()+ end:position!() {
+            Ctx { binds, span: Span { file: file.to_string(), start, end } }
           }
 
         rule cstr_rhs() -> (Ctx, Vec<Tm>)
@@ -62,7 +62,7 @@ peg::parser! {
             Ok((ctx, unroll_app(tm)))
           }
           / pos:position!() tm:tm() {?
-            Ok((Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, unroll_app(tm)))
+            Ok((Ctx { binds: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, unroll_app(tm)))
           }
 
       rule cstr(data : &Ident) -> Cstr
@@ -79,7 +79,7 @@ peg::parser! {
         }
         / pos:position!() tm:tm() {?
           if let Tm::Set(TmSet { level, span }) = tm {
-            return Ok((Ctx { ctx: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, level))
+            return Ok((Ctx { binds: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, level))
           }
           Err("indices of data type definitions are expected to end in `Set`")
         }
