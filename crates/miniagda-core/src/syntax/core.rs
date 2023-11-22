@@ -86,7 +86,7 @@ pub struct Data {
   pub ident: Ident,
   pub params: Ctx,
   pub indices: Tel,
-  pub level: usize,
+  pub set: Tm,
   pub cstrs: Vec<Cstr>,
   pub span: Span,
 }
@@ -99,8 +99,8 @@ pub enum Decl {
 #[derive(Clone, Debug)]
 pub struct Prog {
   pub decls: Vec<Decl>,
-  pub tm: Tm,
-  pub ty: Tm,
+  // pub tm: Tm,
+  // pub ty: Tm,
   pub span: Span,
 }
 
@@ -288,7 +288,7 @@ impl Display for Data {
       self.params,
       self.indices,
       if self.indices.tms.is_empty() { "" } else { " → " },
-      if self.level == 0 { self.level.to_string() } else { String::new() },
+      self.set,
       self.cstrs.iter().map(|cstr| format!("  {cstr}")).collect::<Vec<String>>().join("\n")
     )
   }
@@ -306,10 +306,10 @@ impl Display for Prog {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
       f,
-      "{}\n\n_ : {}\n_ = {}",
+      "{}",
       self.decls.iter().map(|decl| format!("{decl}")).collect::<Vec<String>>().join("\n\n"),
-      self.ty,
-      self.tm
+      // self.ty,
+      // self.tm
     )
   }
 }

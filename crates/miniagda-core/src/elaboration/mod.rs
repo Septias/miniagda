@@ -26,9 +26,9 @@ pub fn elab(prog: Prog) -> Result<()> {
 pub fn elab_prog(prog: Prog, state: &mut State) -> Result<()> {
   prog.decls.into_iter().map(|decl| elab_decl(decl, state)).collect::<Result<Vec<_>>>()?;
   assert!(state.is_only_globals());
-  let ty = elab_tm_inf(prog.ty.clone(), state)?;
-  expected_set(&ty, None)?;
-  elab_tm_chk(prog.tm, eval(prog.ty, &state.env), state)?;
+  // let ty = elab_tm_inf(prog.ty.clone(), state)?;
+  // expected_set(&ty, None)?;
+  // elab_tm_chk(prog.tm, eval(prog.ty, &state.env), state)?;
   Ok(())
 }
 
@@ -72,7 +72,7 @@ pub fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
         ty => return Err(Error::from(ElabErr::FunctionTypeExpected { tm: left_clone, got: ty })),
       }
     }
-    Tm::Abs(_) => todo!(),
+    tm @ Tm::Abs(_) => return Err(Error::from(ElabErr::AttemptAbsInfer { tm })),
     Tm::All(TmAll { dom, codom, span, .. }) => match (elab_tm_inf(*dom, state)?, elab_tm_inf(*codom, state)?) {
       (Val::Set(TmSet { level: level1, .. }), Val::Set(TmSet { level: level2, .. })) => Val::Set(TmSet { level: level1.max(level2), span }),
       (Val::Set(_), s) | (s, Val::Set(_) | _) => return Err(Error::from(ElabErr::ExpectedSetAll { got: s })),

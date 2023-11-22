@@ -64,8 +64,8 @@ pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
   let mut env = Env::default();
   let prog = core::Prog {
     decls: prog.decls.into_iter().map(|decl| surf_to_core_decl(decl, &mut env)).collect::<Result<Vec<_>>>()?,
-    ty: surf_to_core_tm(prog.ty, &mut env)?,
-    tm: surf_to_core_tm(prog.tm, &mut env)?,
+    // ty: surf_to_core_tm(prog.ty, &mut env)?,
+    // tm: surf_to_core_tm(prog.tm, &mut env)?,
     span: prog.span.clone(),
   };
   debug_assert!(env.var.is_empty());
@@ -75,6 +75,7 @@ pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
 fn surf_to_core_decl(decl: surface::Decl, env: &mut Env) -> Result<core::Decl> {
   let decl = match decl {
     surface::Decl::Data(data) => core::Decl::Data(surf_to_core_data(data, env)?),
+    surface::Decl::Func(_) => todo!(),
   };
   env.var.clear();
   Ok(decl)
@@ -86,6 +87,8 @@ fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
   let params = surf_to_core_ctx(data.params, env)?;
 
   let indices = env.forget_vars(|env| surf_to_core_tel(data.indices, env))?;
+  
+  let set = surf_to_core_tm(data.set, &mut Env::default())?;
 
   let cstrs = data.cstrs.into_iter().map(|cstr| surf_to_core_cstr(cstr, env)).collect::<Result<Vec<_>>>()?;
 
@@ -93,7 +96,7 @@ fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
     ident: data.ident,
     params,
     indices,
-    level: data.level,
+    set,
     cstrs,
     span: data.span,
   })

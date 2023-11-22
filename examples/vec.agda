@@ -10,7 +10,7 @@ data N : Set where
 
 data Leq : N → N → Set where
   lz : (n : N) → Leq zero n
-  ls : (m : N) (n : N) (_ : Leq m n) → Leq (suc m) (suc n)
+  ls : (m : N) (n : N) → Leq m n → Leq (suc m) (suc n)
 
 data Vec (A : Set) : N → Set where
   nil  : Vec A zero
@@ -20,5 +20,7 @@ data Sum (A : Set) (B : Set) : Set where
   left  : A → Sum A B
   right : B → Sum A B 
 
-_ : Eq N (suc zero) (suc zero) 
-_ = refl {A = N} {x = (suc zero)}
+foo : (_ : Sum (Eq N (suc zero) (zero)) T) → N
+foo (left ())
+foo (right x) = zero
+ 

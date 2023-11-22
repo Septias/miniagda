@@ -14,9 +14,9 @@ struct Args {
 
 fn run<P: AsRef<Path>>(path: P) -> Result<()> {
   let prog = parse(path)?;
-  println!("-- surface -------------------------------------------------------\n\n{}\n", &prog);
+  log::trace!(target: "surface", "\n{}", prog);
   let prog = surface_to_core(prog)?;
-  println!("-- core ----------------------------------------------------------\n\n{}\n", &prog);
+  log::trace!(target: "core", "\n{}", prog);
   elab(prog)
 }
 
@@ -26,7 +26,7 @@ fn main() {
   match run(args.path) {
     Ok(()) => log::info!(target: "miniagda", "type check successful"),
     Err(e) => match e {
-      Error::SurfaceToCore(e) => log::error!(target: "translation to core language", "{}", e),
+      Error::SurfaceToCore(e) => log::error!(target: "scoping", "{}", e),
       Error::Parse(e) => log::error!(target: "parsing", "{}", e),
       Error::Lex(e) => log::error!(target: "lexing", "{}", e),
       Error::Elab(e) => log::error!(target: "elaboration", "{}", e),

@@ -1,108 +1,158 @@
 use super::lex::{Braced, SpannedToks, Token};
 use crate::diagnostics::span::{Span, Spanned};
-use crate::syntax::surface::{self, Cstr, Ctx, Decl, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
+use crate::syntax::surface::{self, Cls, ClsAbsurd, ClsClause, Cstr, Ctx, Decl, Func, Pat, PatCst, PatDot, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
 use crate::syntax::Ident;
 
 peg::parser! {
     pub grammar parser<'a>(file: &str) for SpannedToks<'a, Braced<Token<'a>>> {
-        use Token::{All, Arrow, BraceL, BraceR, Colon, Data, Equals, Id, Lambda, ParenL, ParenR, Where};
-        use Braced::{Begin, End, Item};
-        use Braced::Token as Tok;
+    use Token::{Arrow, BraceL, BraceR, Colon, Data, Equals, Id, Lambda, ParenL, ParenR, Where, Dot, All};
+    use Braced::{Begin, End, Item};
+    use Braced::Token as Tok;
 
-        rule id() -> Ident
-            = start:position!() [Tok(Id(x))] end:position!() {
-              Ident { name: x.to_owned(), span: Span { file: file.to_string(), start, end }
-            }
+    rule id() -> Ident
+        = start:position!() [Tok(Id(x))] end:position!() {
+          Ident { name: x.to_owned(), span: Span { file: file.to_string(), start, end }
         }
-
-        rule tm() -> Tm = precedence!{
-          [Tok(ParenL)] tm:tm() [Tok(ParenR)] { Tm::Brc(Box::new(tm)) }
-          [Tok(BraceL)] _:id() [Tok(Equals)] tm:tm() [Tok(BraceR)] { Tm::Brc(Box::new(tm)) }
-          --
-          start:position!() [Tok(Lambda)] bind:bind() [Tok(Arrow)] body:tm() end:position!() {
-              Tm::Abs(TmAbs { ident: bind.0, ty: Box::new(bind.1), body: Box::new(body), span: Span { file: file.to_string(), start, end }  })
-          }
-          start:position!()  [Tok(All)] bind:bind() [Tok(Arrow)] body:tm() end:position!() {
-              Tm::All(TmAll { ident: bind.0, dom: Box::new(bind.1), codom: Box::new(body), span: Span { file: file.to_string(), start, end }  })
-          }
-          --
-          left:(@) right:tm() end:position!() {
-            let left_span = left.span();
-            let right_span = right.span();
-            roll_app(left, right)
-          }
-          ident:id() {
-            if ident.name.starts_with("Set") {
-              if let Ok(level) = ident.name[3..].parse::<usize>() {
-                return Tm::Set(TmSet { level, span: ident.span })
-              }
-              if ident.name.len() == 3 {
-                return Tm::Set(TmSet { level: 0, span: ident.span })
-              }
-            }
-            Tm::Var(ident)
-          }
-        }
-
-        rule bind() -> (Ident, Tm)
-          = [Tok(ParenL)] ident:id() [Tok(Colon)] tm:tm() [Tok(ParenR)] { (ident, tm) }
-          / [Tok(Arrow)]? pos:position!() tm:tm() &[Tok(Arrow)] {
-            (Ident { span: Span { file: file.to_string(), start: pos, end: pos }, name: "".to_owned() }, tm)
-          }
-
-        rule ctx() -> Ctx
-          = start:position!() binds:bind()* end:position!() {
-            Ctx { binds, span: Span { file: file.to_string(), start, end } }
-          }
-
-        rule ctx1() -> Ctx
-          = start:position!() binds:bind()+ end:position!() {
-            Ctx { binds, span: Span { file: file.to_string(), start, end } }
-          }
-
-        rule cstr_rhs() -> (Ctx, Vec<Tm>)
-          = ctx:ctx1() [Tok(Arrow)] tm:tm() {?
-            Ok((ctx, unroll_app(tm)))
-          }
-          / pos:position!() tm:tm() {?
-            Ok((Ctx { binds: vec![], span: Span{ file: file.to_string(), start: pos, end: pos } }, unroll_app(tm)))
-          }
-
-      rule cstr(data : &Ident) -> Cstr
-        = start:position!() [Item] ident:id() [Tok(Colon)] rhs:cstr_rhs() end:position!() {
-          Cstr { ident, args: rhs.0, params: rhs.1, span: Span { file: file.to_string(), start, end } }
-        }
-
-      rule indices_and_level() -> (Ctx, usize)
-        = ctx:ctx1() [Tok(Arrow)] tm:tm() {?
-          if let Tm::Set(TmSet { level, span }) = tm {
-            return Ok((ctx, level))
-          }
-          Err("indices of data type definitions are expected to end in `Set`")
-        }
-        / pos:position!() tm:tm() {?
-          if let Tm::Set(TmSet { level, span }) = tm {
-            return Ok((Ctx { binds: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, level))
-          }
-          Err("indices of data type definitions are expected to end in `Set`")
-        }
-
-      rule data() -> surface::Data
-        = start:position!() [Tok(Data)] ident:id() params:ctx() [Tok(Colon)] ial:indices_and_level() [Tok(Where)]
-          [Begin] cstrs:cstr(&ident)* [End] end:position!() {
-            surface::Data { ident, params, indices: ial.0, level: ial.1, cstrs, span: Span { file: file.to_string(), start, end } }
-        }
-
-      rule decl() -> Decl
-        = [Item] data:data() { Decl::Data(data) }
-
-      pub rule prog() -> Prog
-       = start:position!() [Begin] decls:decl()*
-          [Item] ident1:id() [Tok(Colon)] ty:tm() [Item] ident2:id() [Tok(Equals)] tm:tm() [End] end:position!() {
-            assert!(ident1.name == ident2.name);
-            Prog { decls, tm, ty, span: Span { file: file.to_string(), start, end } }
-       }
     }
+
+    #[cache_left_rec]
+    rule tm() -> Tm 
+      = tm:tm_no_fn() {tm}
+      / start:position!() ctx:ctx1() [Tok(Arrow)] codom:tm() end:position!() {
+        ctx_to_all(&ctx.binds, codom, (file, (start, end)))
+    }
+
+    rule tm_no_fn() -> Tm = precedence!{
+      [Tok(ParenL)] tm:tm() [Tok(ParenR)] { Tm::Brc(Box::new(tm)) }
+      [Tok(BraceL)] _:id() [Tok(Equals)] tm:tm() [Tok(BraceR)] { Tm::Brc(Box::new(tm)) }
+      --
+      start:position!() [Tok(Lambda)] bind:bind() [Tok(Arrow)] body:tm() end:position!() {
+          Tm::Abs(TmAbs { ident: bind.0, ty: Box::new(bind.1), body: Box::new(body), span: Span { file: file.to_string(), start, end }  })
+      }
+      --
+      left:(@) right:tm_no_fn() end:position!() {
+        let left_span = left.span();
+        let right_span = right.span();
+        roll_app(left, right)
+      }
+      ident:id() {
+        // TODO: add respective token
+        if ident.name.starts_with("Set") {
+          if let Ok(level) = ident.name[3..].parse::<usize>() {
+            return Tm::Set(TmSet { level, span: ident.span })
+          }
+          if ident.name.len() == 3 {
+            return Tm::Set(TmSet { level: 0, span: ident.span })
+          }
+        }
+        Tm::Var(ident)
+      }
+    }
+
+    #[cache_left_rec]
+    rule bind() -> (Ident, Tm)
+      = [Tok(ParenL)] ident:id() [Tok(Colon)] tm:tm() [Tok(ParenR)] { (ident, tm) }
+      / [Tok(Arrow)]? pos:position!() tm:tm_no_fn() &[Tok(Arrow)] {
+        (Ident { span: Span { file: file.to_string(), start: pos, end: pos }, name: "_".to_owned() }, tm)
+      }
+
+    rule ctx() -> Ctx
+      = start:position!() binds:bind()* end:position!() {
+        Ctx { binds, span: Span { file: file.to_string(), start, end } }
+        }
+
+    #[cache_left_rec]
+    rule ctx1() -> Ctx
+      = start:position!() [Tok(All)]? binds:bind()+ end:position!() {
+        Ctx { binds, span: Span { file: file.to_string(), start, end } }
+      }
+
+    rule cstr_rhs() -> (Ctx, Vec<Tm>)
+      = ctx:ctx1() [Tok(Arrow)] tm:tm_no_fn() {
+        (ctx, unroll_app(tm))
+      }
+      / pos:position!() tm:tm_no_fn() {
+        (Ctx { binds: vec![], span: Span{ file: file.to_string(), start: pos, end: pos } }, unroll_app(tm))
+      }
+
+    rule cstr(data : &Ident) -> Cstr
+      = start:position!() [Item] ident:id() [Tok(Colon)] rhs:cstr_rhs() end:position!() {
+        Cstr { ident, args: rhs.0, params: rhs.1, span: Span { file: file.to_string(), start, end } }
+      }
+        
+    rule indices_and_level() -> (Ctx, Tm)
+      = ctx:ctx1() [Tok(Arrow)] tm:tm_no_fn() {
+        (ctx, tm)
+      }
+      / pos:position!() tm:tm_no_fn() {
+        (Ctx { binds: vec![], span: Span{ file: file.to_string(), start:pos, end:pos } }, tm)
+      }
+        
+    rule data() -> surface::Data
+      = [Item]  start:position!() [Tok(Data)] ident:id() params:ctx() [Tok(Colon)] ial:indices_and_level() [Tok(Where)]
+        [Begin] cstrs:cstr(&ident)* [End] end:position!() {
+          surface::Data { ident, params, indices: ial.0, set: ial.1, cstrs, span: Span { file: file.to_string(), start, end } }
+      }
+        
+    rule pat() -> Pat = precedence!{
+      start:position!() [Tok(ParenL)] [Tok(ParenR)] end:position!()  { Pat::Abs(Span { file: file.to_string(), start, end }) }
+      [Tok(ParenL)] pat:pat() [Tok(ParenR)] { Pat::Brc(Box::new(pat)) }
+      [Tok(BraceL)] _:id() [Tok(Equals)] pat:pat() [Tok(BraceR)] { Pat::Brc(Box::new(pat)) }
+      --
+      start:position!() ident:id() pats:pat()+ end:position!() {
+          Pat::Cst(PatCst { cstr: ident, pats, span: Span { file: file.to_string(), start, end } })
+      }
+      start:position!() [Tok(Dot)] tm:tm() end:position!() {
+        Pat::Dot(PatDot { tm, span: Span { file: file.to_string(), start, end } })
+      }
+      ident:id() { Pat::Var(ident) } // might be Pat::Cst -- check in surface_to_core
+    }
+      
+    rule cls() -> Cls
+      = [Item] start:position!() ident:id() pats:pat()* [Tok(Equals)] tm:tm() end:position!() {
+        Cls::Cls(ClsClause { func: ident, pats, rhs: tm, span: Span { file: file.to_string(), start, end } })
+      }
+      / [Item] start:position!() ident:id() pats:pat()* end:position!() {
+        Cls::Abs(ClsAbsurd { func: ident, pats, span: Span { file: file.to_string(), start, end } })
+      }
+        
+    rule func() -> Func
+      = [Item] start:position!() ident:id() [Tok(Colon)] ty:tm() cls:cls()+ end:position!() {
+        Func { ident, ty, cls, span: Span { file: file.to_string(), start, end } }
+      }
+        
+    rule decl() -> Decl
+      = data:data() { Decl::Data(data) }
+      / func:func() { Decl::Func(func) }
+        
+    pub rule prog() -> Prog
+     = start:position!() [Begin] decls:decl()* [End] end:position!() {
+      Prog { decls, span: Span { file: file.to_string(), start, end } }
+     }
+  }
+}
+
+fn ctx_to_all(binds: &[(Ident, Tm)], codom: Tm, (file, (start, end)): (&str, (usize, usize))) -> Tm {
+  // TODO: unified parsing for ctx and all types (as they are the same)
+
+  assert!(!binds.is_empty());
+
+  let codom = if binds.len() == 1 {
+    codom
+  } else {
+    ctx_to_all(&binds[1..], codom, (file, (binds[1..][1].0.span().start, end)))
+  };
+
+  Tm::All(TmAll {
+    ident: binds[0].0.clone(),
+    dom: Box::new(binds[0].1.clone()),
+    codom: Box::new(codom),
+    span: Span {
+      file: file.to_string(),
+      start,
+      end,
+    },
+  })
 }
 
 fn unroll_app(app: Tm) -> Vec<Tm> {

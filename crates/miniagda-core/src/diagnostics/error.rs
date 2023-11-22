@@ -44,14 +44,14 @@ impl Display for SurfaceToCoreErr {
 #[derive(Clone, Debug)]
 pub enum ParseErr {
   FileNotFound { path: String },
-  UnexpectedToken { span: usize, expected: String },
+  UnexpectedToken { pos: usize, expected: String },
 }
 
 impl Display for ParseErr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       ParseErr::FileNotFound { path } => write!(f, "file {} does not exist", path),
-      ParseErr::UnexpectedToken { span, expected } => write!(f, "expected one of {} at position {}", expected, span),
+      ParseErr::UnexpectedToken { pos: span, expected } => write!(f, "expected one of {} at position {}", expected, span),
     }
   }
 }
@@ -72,6 +72,7 @@ impl Display for LexErr {
 
 #[derive(Clone, Debug)]
 pub enum ElabErr {
+  ExpectedSetData { got: Tm },
   ExpectedSetCtx { got: Val },
   ExpectedSetAll { got: Val },
   LevelTooHigh { tm: Val, max: usize },
@@ -81,6 +82,7 @@ pub enum ElabErr {
   UnexpectedArg { got: Tm },
   TypeMismatch { ty1: Val, ty2: Val, v1: Val, v2: Val },
   FunctionTypeExpected { tm: Tm, got: Val },
+  AttemptAbsInfer { tm: Tm },
 }
 
 impl Display for ElabErr {
@@ -97,6 +99,8 @@ impl Display for ElabErr {
       ElabErr::TypeMismatch { ty1, ty2, v1, v2 } => write!(f, "type mismatch between `{}` and `{}`, more specifically `{}` is not `{}`", ty1, ty2, v1, v2),
       ElabErr::FunctionTypeExpected { tm, got } => write!(f, "expected `{}` to be a function type, but got `{}`", tm, got),
       ElabErr::ExpectedData { expected, got } => write!(f, "expected constructor to end in data type  `{}`, but got `{}`", expected, got),
+      ElabErr::AttemptAbsInfer { tm } => write!(f, "cannot infer type for abstraction `{}`", tm),
+      ElabErr::ExpectedSetData { got } => write!(f, "expected data type definition to end in Setℓ, but got `{}`", got),
     }
   }
 }

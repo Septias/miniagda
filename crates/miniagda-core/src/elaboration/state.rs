@@ -23,7 +23,7 @@ impl State {
     let ty = self
       .global_types
       .get(var)
-      .unwrap_or_else(|| panic!("could not resolve type of variable {}", var))
+      .unwrap_or_else(|| panic!("could not resolve type of global {var}"))
       .clone();
     trace!(
       "resolve_global",

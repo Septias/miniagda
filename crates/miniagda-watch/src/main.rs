@@ -33,7 +33,7 @@ fn check<P: AsRef<Path>>(path: P) {
         Error::Lex(e) => format!("{e}"),
         Error::Elab(e) => format!("{e}"),
       };
-      print!("{}⨯{} {}", color::Fg(color::Red), color::Fg(color::Reset), e)
+      print!("{}⨯{} {}", color::Fg(color::Red), color::Fg(color::Reset), e);
     }
   };
   io::stdout().flush().unwrap();

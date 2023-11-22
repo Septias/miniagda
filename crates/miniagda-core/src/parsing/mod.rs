@@ -15,8 +15,8 @@ pub fn parse<P: AsRef<Path>>(path: P) -> Result<Prog> {
   let toks = lex::lex(src.as_str()).map_err(Error::from)?;
   let indented = lex::process_indent(toks, |t| *t == Token::Where, |t| *t == Token::NewLine);
   let parsed = parse::parser::prog(&indented, &file_path).map_err(|e| ParseErr::UnexpectedToken {
-    span: e.location,
+    pos: e.location,
     expected: e.expected.to_string(),
-  })?; // map errors correctly
+  })?;
   Ok(parsed)
 }

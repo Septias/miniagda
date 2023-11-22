@@ -11,6 +11,12 @@ pub trait Spanned {
   fn span(&self) -> Span;
 }
 
+impl Spanned for Span {
+  fn span(&self) -> Span {
+    self.clone()
+  }
+}
+
 macro_rules! impl_spanned_struct {
   ($name:path) => {
     impl Spanned for $name {
@@ -45,7 +51,14 @@ impl_spanned_enum!(surface::Tm; Var, App, Abs, All, Set, Brc);
 impl_spanned_struct!(surface::Ctx);
 impl_spanned_struct!(surface::Cstr);
 impl_spanned_struct!(surface::Data);
-impl_spanned_enum!(surface::Decl; Data);
+impl_spanned_struct!(surface::PatCst);
+impl_spanned_struct!(surface::PatDot);
+impl_spanned_enum!(surface::Pat; Var, Cst, Dot, Abs, Brc);
+impl_spanned_struct!(surface::ClsClause);
+impl_spanned_struct!(surface::ClsAbsurd);
+impl_spanned_enum!(surface::Cls; Cls, Abs);
+impl_spanned_struct!(surface::Func);
+impl_spanned_enum!(surface::Decl; Data, Func);
 impl_spanned_struct!(surface::Prog);
 
 impl_spanned_struct!(core::TmVar);

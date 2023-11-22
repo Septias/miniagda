@@ -32,14 +32,13 @@ pub enum Token<'a> {
   All,
   #[token("=")]
   Equals,
+  #[token(".")]
+  Dot,
   #[regex("\n|\r\n|\n\r")]
   NewLine,
-  #[regex("[a-zA-Z_]+[a-zA-Z0-9_]*")]
+  #[regex(r"[^(){}:→λ∀= \t\f\n]+")]
   Id(&'a str),
 }
-
-// -----------------------------------------------------------------------------------
-// thanks Hannes bb :*
 
 pub fn lex(src: &str) -> Result<SpannedToks<'_, Token<'_>>, LexErr> {
   let lex: Lexer<Token> = Token::lexer(src);

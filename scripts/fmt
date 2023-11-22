@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+rustfmt crates/**/**/*.rs --edition 2021

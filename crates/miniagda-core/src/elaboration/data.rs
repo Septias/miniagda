@@ -19,22 +19,17 @@ pub fn elab_decl(decl: Decl, state: &mut State) -> Result<()> {
 }
 
 fn elab_data(data: Data, state: &mut State) -> Result<()> {
+  let data_clone = data.clone();
+
+  let level = match data.set {
+    Tm::Set(TmSet { level, .. }) => level,
+    tm => return Err(Error::from(ElabErr::ExpectedSetData { got: tm.clone() })),
+  };
+
   let name = data.ident.clone();
   debug!("elab_data", "elaborating data type `{}`", name);
-  let as_fn = eval(
-    ctx_to_fn(
-      &data.params,
-      tel_to_fn(
-        &data.indices,
-        Tm::Set(TmSet {
-          level: data.level,
-          span: data.span(),
-        }),
-      ),
-    ),
-    &Env::default(),
-  );
-  let cstr_clone = data.clone(); // TODO: optimize
+  let as_fn = eval(ctx_to_fn(&data.params, tel_to_fn(&data.indices, data.set)), &Env::default());
+
 
   debug!("elab_data", "elaborating parameters `{}` of data type `{}`", data.params, name);
   elab_binds(data.params.binds, data.params.tms, None, state)?;
@@ -47,13 +42,13 @@ fn elab_data(data: Data, state: &mut State) -> Result<()> {
   data
     .cstrs
     .into_iter()
-    .map(|cstr| state.forget(|env| elab_cstr(cstr, &cstr_clone, &indices_types, env)))
+    .map(|cstr| state.forget(|env| elab_cstr(cstr, &data_clone, level, &indices_types, env)))
     .collect::<Result<Vec<_>>>()?;
   debug!("elab_data", "elaborated data type `{}`", name);
   Ok(())
 }
 
-fn elab_cstr(cstr: Cstr, data: &Data, indices_types: &[Val], state: &mut State) -> Result<()> {
+fn elab_cstr(cstr: Cstr, data: &Data, level: usize, indices_types: &[Val], state: &mut State) -> Result<()> {
   let name = cstr.ident.clone();
   debug!("elab_cstr", "elaborating constructor `{}`", name);
 
@@ -79,7 +74,7 @@ fn elab_cstr(cstr: Cstr, data: &Data, indices_types: &[Val], state: &mut State) 
   let args_len = cstr.args.binds.len();
 
   debug!("elab_cstr", "elaborating constructor arguments `{}`", cstr.args);
-  elab_binds(cstr.args.binds, cstr.args.tms, Some(data.level), state)?;
+  elab_binds(cstr.args.binds, cstr.args.tms, Some(level), state)?;
 
   let data_params_len = data.params.binds.len();
   for i in 0..data_params_len {
