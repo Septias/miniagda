@@ -8,7 +8,7 @@ use crate::{
   trace,
 };
 
-use crate::syntax::core::{Lvl, Tm, TmAbs, TmAll, TmApp, TmSet, Val, ValAbs, ValAll, ValApp, ValVar};
+use crate::syntax::core::{Lvl, Set, Tm, TmAbs, TmAll, TmApp, Val, ValAbs, ValAll, ValApp, ValVar};
 
 use self::state::State;
 use crate::diagnostics::Result;
@@ -59,7 +59,7 @@ pub fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
   let tm_fmt = format!("{tm}");
   let ty = match tm {
     Tm::Var(x) => state.resolve(&x),
-    Tm::Glo(x) => state.resolve_global(&x),
+    Tm::Data(x) | Tm::Cstr(x) | Tm::Func(x) => state.resolve_global(&x),
     Tm::App(TmApp { left, right, .. }) => {
       let left_clone = *left.clone(); // TODO: performance
       let lty = elab_tm_inf(*left, state)?;
@@ -74,10 +74,10 @@ pub fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
     }
     tm @ Tm::Abs(_) => return Err(Error::from(ElabErr::AttemptAbsInfer { tm })),
     Tm::All(TmAll { dom, codom, span, .. }) => match (elab_tm_inf(*dom, state)?, elab_tm_inf(*codom, state)?) {
-      (Val::Set(TmSet { level: level1, .. }), Val::Set(TmSet { level: level2, .. })) => Val::Set(TmSet { level: level1.max(level2), span }),
+      (Val::Set(Set { level: level1, .. }), Val::Set(Set { level: level2, .. })) => Val::Set(Set { level: level1.max(level2), span }),
       (Val::Set(_), s) | (s, Val::Set(_) | _) => return Err(Error::from(ElabErr::ExpectedSetAll { got: s })),
     },
-    Tm::Set(TmSet { level, span }) => Val::Set(TmSet { level: level + 1, span }),
+    Tm::Set(Set { level, span }) => Val::Set(Set { level: level + 1, span }),
   };
   trace!("elab_tm_inf", "inferred type of `{}` to be `{}`", tm_fmt, ty);
   Ok(ty)
@@ -88,7 +88,7 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {
   let ty2_fmt = format!("{ty2}");
   trace!("eq", "test for type equality of `{}` and `{}`", ty1_fmt, ty2_fmt,);
   match (ty1, ty2) {
-    (Val::Set(TmSet { level: level1, .. }), Val::Set(TmSet { level: level2, .. })) if level1 == level2 => Ok(()),
+    (Val::Set(Set { level: level1, .. }), Val::Set(Set { level: level2, .. })) if level1 == level2 => Ok(()),
     (
       Val::Abs(ValAbs {
         ty: ty1,
@@ -150,7 +150,9 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {
       )
     }
     (Val::Var(ValVar { lvl: lvl1, .. }), Val::Var(ValVar { lvl: lvl2, .. })) if lvl1 == lvl2 => Ok(()),
-    (Val::Glo(ident1), Val::Glo(ident2)) if ident1 == ident2 => Ok(()),
+    (Val::Data(ident1), Val::Data(ident2)) if ident1 == ident2 => Ok(()),
+    (Val::Cstr(ident1), Val::Cstr(ident2)) if ident1 == ident2 => Ok(()),
+    (Val::Func(ident1), Val::Func(ident2)) if ident1 == ident2 => Ok(()),
     (Val::App(ValApp { left: left1, right: right1, .. }), Val::App(ValApp { left: left2, right: right2, .. })) => {
       eq(*left1, *left2, lvl)?;
       eq(*right1, *right2, lvl)
@@ -160,7 +162,7 @@ fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {
 }
 
 pub fn expected_set(ty: &Val, max_lvl: Option<usize>) -> Result<()> {
-  if let Val::Set(TmSet { level, .. }) = ty {
+  if let Val::Set(Set { level, .. }) = ty {
     if let Some(max_lvl) = max_lvl {
       if *level > max_lvl {
         return Err(Error::from(ElabErr::LevelTooHigh { tm: ty.clone(), max: max_lvl }));

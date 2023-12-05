@@ -20,7 +20,4 @@ data Sum (A : Set) (B : Set) : Set where
   left  : A → Sum A B
   right : B → Sum A B 
 
-foo : (_ : Sum (Eq N (suc zero) (zero)) T) → N
-foo (left ())
-foo (right x) = zero
- 
+

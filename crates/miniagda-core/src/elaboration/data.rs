@@ -8,7 +8,7 @@ use crate::diagnostics::Result;
 use crate::elaboration::elab_tm_chk;
 use crate::syntax::core::Env;
 use crate::syntax::{
-  core::{Cstr, Ctx, Data, Decl, Tel, Tm, TmAll, TmApp, TmSet, TmVar, Val},
+  core::{Cstr, Ctx, Data, Decl, Tel, Tm, TmAll, TmApp, Set, TmVar, Val},
   Ident,
 };
 
@@ -22,7 +22,7 @@ fn elab_data(data: Data, state: &mut State) -> Result<()> {
   let data_clone = data.clone();
 
   let level = match data.set {
-    Tm::Set(TmSet { level, .. }) => level,
+    Tm::Set(Set { level, .. }) => level,
     tm => return Err(Error::from(ElabErr::ExpectedSetData { got: tm.clone() })),
   };
 
@@ -55,7 +55,7 @@ fn elab_cstr(cstr: Cstr, data: &Data, level: usize, indices_types: &[Val], state
   assert!(!cstr.params.is_empty());
 
   match &cstr.params[0] {
-    Tm::Glo(ident) if ident == &data.ident => (),
+    Tm::Data(ident) if ident == &data.ident => (),
     tm => {
       return Err(Error::from(ElabErr::ExpectedData {
         expected: data.ident.clone(),

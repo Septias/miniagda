@@ -26,6 +26,7 @@ fn check<P: AsRef<Path>>(path: P) {
   print!("{}{}", clear::All, cursor::Goto(2, 1));
   match run(path) {
     Ok(()) => print!("{}✓{} All Done", color::Fg(color::Green), color::Fg(color::Reset)),
+// hässlich
     Err(e) => {
       let e = match e {
         Error::SurfaceToCore(e) => format!("{e}"),

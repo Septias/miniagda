@@ -44,7 +44,7 @@ pub struct TmAll {
 }
 
 #[derive(Clone, Debug)]
-pub struct TmSet {
+pub struct Set {
   pub level: usize,
   pub span: Span,
 }
@@ -52,11 +52,13 @@ pub struct TmSet {
 #[derive(Clone, Debug)]
 pub enum Tm {
   Var(TmVar),
-  Glo(Ident),
+  Data(Ident),
+  Func(Ident),
+  Cstr(Ident),
   App(TmApp),
   Abs(TmAbs),
   All(TmAll),
-  Set(TmSet),
+  Set(Set),
 }
 
 #[derive(Clone, Debug)]
@@ -142,11 +144,13 @@ pub struct ValAll {
 #[derive(Clone, Debug)]
 pub enum Val {
   Var(ValVar),
-  Glo(Ident),
+  Data(Ident),
+  Func(Ident),
+  Cstr(Ident),
   App(ValApp),
   Abs(ValAbs),
   All(ValAll),
-  Set(TmSet),
+  Set(Set),
 }
 
 impl From<Lvl> for ValVar {
@@ -189,7 +193,7 @@ impl Display for Val {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Val::Var(ValVar { lvl, name, .. }) => write!(f, "{}{{{{{}}}}}", name, lvl.0),
-      Val::Glo(x) => write!(f, "{}", x.name),
+      Val::Data(x) | Val::Cstr(x) | Val::Func(x) => write!(f, "{}", x.name),
       Val::App(ValApp { left, right, .. }) => write!(f, "({left} {right})"),
       Val::Abs(ValAbs { env, ident, ty, body, .. }) => write!(
         f,
@@ -207,7 +211,7 @@ impl Display for Val {
         dom,
         codom
       ),
-      Val::Set(TmSet { level, .. }) => write!(f, "Set{}", if *level == 0 { String::new() } else { level.to_string() }),
+      Val::Set(Set { level, .. }) => write!(f, "Set{}", if *level == 0 { String::new() } else { level.to_string() }),
     }
   }
 }
@@ -222,11 +226,11 @@ impl Display for Tm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Tm::Var(x) => write!(f, "{x}"),
-      Tm::Glo(x) => write!(f, "{}", x.name),
+      Tm::Data(x) | Tm::Cstr(x) | Tm::Func(x) => write!(f, "{}", x.name),
       Tm::App(TmApp { left, right, .. }) => write!(f, "({left} {right})"),
       Tm::Abs(TmAbs { ident, ty, body, .. }) => write!(f, "(λ ({ident} : {ty}) → {body})"),
       Tm::All(TmAll { ident, dom, codom, .. }) => write!(f, "(∀ ({ident} : {dom}) → {codom})"),
-      Tm::Set(TmSet { level, .. }) => {
+      Tm::Set(Set { level, .. }) => {
         write!(f, "Set{}", if *level == 0 { String::new() } else { level.to_string() })
       }
     }

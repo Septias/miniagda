@@ -4,7 +4,7 @@ use crate::syntax::surface::{self, Cls, ClsAbsurd, ClsClause, Cstr, Ctx, Decl, F
 use crate::syntax::Ident;
 
 peg::parser! {
-    pub grammar parser<'a>(file: &str) for SpannedToks<'a, Braced<Token<'a>>> {
+  pub grammar parser<'a>(file: &str) for SpannedToks<'a, Braced<Token<'a>>> {
     use Token::{Arrow, BraceL, BraceR, Colon, Data, Equals, Id, Lambda, ParenL, ParenR, Where, Dot, All};
     use Braced::{Begin, End, Item};
     use Braced::Token as Tok;
@@ -17,10 +17,10 @@ peg::parser! {
 
     #[cache_left_rec]
     rule tm() -> Tm 
-      = tm:tm_no_fn() {tm}
-      / start:position!() ctx:ctx1() [Tok(Arrow)] codom:tm() end:position!() {
+      = start:position!() ctx:ctx1() [Tok(Arrow)] codom:tm() end:position!() {
         ctx_to_all(&ctx.binds, codom, (file, (start, end)))
-    }
+      }
+      / tm:tm_no_fn() {tm}
 
     rule tm_no_fn() -> Tm = precedence!{
       [Tok(ParenL)] tm:tm() [Tok(ParenR)] { Tm::Brc(Box::new(tm)) }
@@ -90,9 +90,11 @@ peg::parser! {
         
     rule data() -> surface::Data
       = [Item]  start:position!() [Tok(Data)] ident:id() params:ctx() [Tok(Colon)] ial:indices_and_level() [Tok(Where)]
-        [Begin] cstrs:cstr(&ident)* [End] end:position!() {
+        [Begin] cstrs:cstr(&ident)* [Item]? [End] end:position!() {
+          // TODO: emptytype
           surface::Data { ident, params, indices: ial.0, set: ial.1, cstrs, span: Span { file: file.to_string(), start, end } }
       }
+    
         
     rule pat() -> Pat = precedence!{
       start:position!() [Tok(ParenL)] [Tok(ParenR)] end:position!()  { Pat::Abs(Span { file: file.to_string(), start, end }) }

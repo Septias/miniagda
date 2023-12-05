@@ -13,7 +13,6 @@ rust implementation for a subset of the [agda](https://github.com/agda/agda) pro
 - implicit arguments 
 - holes
 - granular caching
-- compiling to one of rust/c/go/haskell/ocaml
 
 ## literature
 

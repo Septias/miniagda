@@ -138,6 +138,7 @@ pub enum Braced<T> {
 }
 
 pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut(&T) -> bool, mut is_newline: impl FnMut(&T) -> bool) -> SpannedToks<Braced<T>> {
+  //TODO: fix appending end when file is ended with empty data type
   let mut toks = vec![];
   let mut indent_stack = vec![0];
   let mut waiting = false;

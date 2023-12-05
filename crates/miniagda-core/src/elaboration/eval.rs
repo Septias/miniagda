@@ -34,7 +34,9 @@ pub fn eval(tm: Tm, env: &Env) -> Val {
   let tm_str = format!("{tm}");
   let val = match tm {
     Tm::Var(x) => env.resolve(x),
-    Tm::Glo(x) => Val::Glo(x.clone()),
+    Tm::Data(x) => Val::Data(x.clone()),
+    Tm::Cstr(x) => Val::Cstr(x.clone()),
+    Tm::Func(x) => Val::Func(x.clone()),
     Tm::App(TmApp { left, right, span }) => match eval(*left, env) {
       Val::Abs(ValAbs { mut env, body, .. }) => {
         let right = eval(*right, &env);

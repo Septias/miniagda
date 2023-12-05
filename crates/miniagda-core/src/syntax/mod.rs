@@ -15,10 +15,17 @@ pub struct Ident {
   pub span: Span,
 }
 
+#[derive(Clone, Debug)]
+enum Glo {
+  Cstr,
+  Data,
+  Func,
+}
+
 #[derive(Clone, Debug, Default)]
 struct Env {
   var: Vec<Ident>,
-  glo: Vec<Ident>,
+  glo: Vec<(Ident, Glo)>,
 }
 
 impl Env {
@@ -31,8 +38,12 @@ impl Env {
         span: var.span,
       })),
       None => {
-        if self.glo.contains(&var) {
-          Ok(core::Tm::Glo(var))
+        if let Some((_, glo)) = self.glo.iter().find(|(x, _)| x == &var) {
+          Ok(match glo {
+            Glo::Cstr => core::Tm::Cstr(var),
+            Glo::Data => core::Tm::Data(var),
+            Glo::Func => core::Tm::Func(var),
+          })
         } else {
           Err(Error::from(SurfaceToCoreErr::UnboundName { name: var.name, span: var.span }))
         }
@@ -40,11 +51,11 @@ impl Env {
     }
   }
 
-  pub fn add_glo(&mut self, x: Ident) -> Result<()> {
-    if self.glo.contains(&x) {
+  pub fn add_glo(&mut self, x: Ident, glo: Glo) -> Result<()> {
+    if self.glo.iter().find(|(var, _)| &x == var).is_some() {
       return Err(Error::from(SurfaceToCoreErr::GlobalExists { name: x.name, span: x.span }));
     }
-    self.glo.push(x);
+    self.glo.push((x, glo));
     Ok(())
   }
 
@@ -82,12 +93,12 @@ fn surf_to_core_decl(decl: surface::Decl, env: &mut Env) -> Result<core::Decl> {
 }
 
 fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
-  env.add_glo(data.ident.clone())?;
+  env.add_glo(data.ident.clone(), Glo::Data)?;
 
   let params = surf_to_core_ctx(data.params, env)?;
 
   let indices = env.forget_vars(|env| surf_to_core_tel(data.indices, env))?;
-  
+
   let set = surf_to_core_tm(data.set, &mut Env::default())?;
 
   let cstrs = data.cstrs.into_iter().map(|cstr| surf_to_core_cstr(cstr, env)).collect::<Result<Vec<_>>>()?;
@@ -110,7 +121,7 @@ fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
     )
   });
 
-  env.add_glo(cstr.ident.clone())?;
+  env.add_glo(cstr.ident.clone(), Glo::Cstr)?;
 
   Ok(core::Cstr {
     ident: cstr.ident,
@@ -173,7 +184,7 @@ fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
         span: span.clone(),
       })
     }
-    surface::Tm::Set(surface::TmSet { level, span }) => core::Tm::Set(core::TmSet { level, span }),
+    surface::Tm::Set(surface::TmSet { level, span }) => core::Tm::Set(core::Set { level, span }),
     surface::Tm::Brc(tm) => surf_to_core_tm(*tm, env)?,
   })
 }
