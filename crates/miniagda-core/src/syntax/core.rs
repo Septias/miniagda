@@ -13,6 +13,9 @@ pub struct Idx(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct Lvl(pub usize);
 
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Terms
+
 #[derive(Clone, Debug)]
 pub struct TmVar {
   pub name: String,
@@ -61,6 +64,9 @@ pub enum Tm {
   Set(Set),
 }
 
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Contexts
+
 #[derive(Clone, Debug)]
 pub struct Ctx {
   pub binds: Vec<Ident>,
@@ -74,6 +80,63 @@ pub struct Tel {
   pub tms: Vec<Tm>,
   pub span: Span,
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Functions
+
+#[derive(Clone, Debug)]
+pub struct PatCst {
+  pub cstr: Ident,
+  pub pats: Vec<Pat>,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub struct PatDot {
+  pub tm: Tm,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum Pat {
+  Var(Ident),
+  Cst(PatCst),
+  Dot(PatDot),
+  Abs(Span),
+  Brc(Box<Pat>),
+}
+
+#[derive(Clone, Debug)]
+pub struct ClsClause {
+  pub func: Ident,
+  pub pats: Vec<Pat>,
+  pub rhs: Tm,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub struct ClsAbsurd {
+  pub func: Ident,
+  pub pats: Vec<Pat>,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum Cls {
+  Cls(ClsClause),
+  Abs(ClsAbsurd),
+}
+
+#[derive(Clone, Debug)]
+pub struct Func {
+  pub ident: Ident,
+  pub ty: Tm,
+  pub cls: Vec<Cls>,
+  pub span: Span,
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Data Types
 
 #[derive(Clone, Debug)]
 pub struct Cstr {
@@ -96,7 +159,11 @@ pub struct Data {
 #[derive(Clone, Debug)]
 pub enum Decl {
   Data(Data),
+  Func(Func),
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Programs
 
 #[derive(Clone, Debug)]
 pub struct Prog {
@@ -105,6 +172,9 @@ pub struct Prog {
   // pub ty: Tm,
   pub span: Span,
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Values
 
 #[derive(Clone, Debug)]
 pub struct ValVar {
@@ -152,6 +222,9 @@ pub enum Val {
   All(ValAll),
   Set(Set),
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Trait Impls
 
 impl From<Lvl> for ValVar {
   fn from(lvl: Lvl) -> Self {
@@ -269,6 +342,57 @@ impl Display for Tel {
   }
 }
 
+impl Display for Pat {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Pat::Var(ident) => write!(f, "{ident}"),
+      Pat::Cst(PatCst { cstr, pats, .. }) => write!(f, "{} {}", cstr, pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" ")),
+      Pat::Dot(PatDot { tm, .. }) => write!(f, ".{tm}"),
+      Pat::Abs(_) => write!(f, "()"),
+      Pat::Brc(pat) => write!(f, "({pat})"),
+    }
+  }
+}
+
+impl Display for ClsAbsurd {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{} {}", self.func, self.pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" "),)
+  }
+}
+
+impl Display for ClsClause {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{} {} = {}",
+      self.func,
+      self.pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" "),
+      self.rhs
+    )
+  }
+}
+
+impl Display for Cls {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Cls::Cls(cls) => write!(f, "{cls}"),
+      Cls::Abs(abs) => write!(f, "{abs}"),
+    }
+  }
+}
+
+impl Display for Func {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{} : {}\n{}",
+      self.ident,
+      self.ty,
+      self.cls.iter().map(|cls| format!("{cls}")).collect::<Vec<String>>().join("\n")
+    )
+  }
+}
+
 impl Display for Cstr {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
@@ -302,6 +426,7 @@ impl Display for Decl {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Decl::Data(data) => write!(f, "{data}"),
+      Decl::Func(func) => write!(f, "{func}"),
     }
   }
 }

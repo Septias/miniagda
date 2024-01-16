@@ -1,2 +1,7 @@
 #!/usr/bin/env bash
+
+# formats all rust files in the project
+
+# important: run from root of repository
+
 rustfmt crates/**/**/*.rs --edition 2021

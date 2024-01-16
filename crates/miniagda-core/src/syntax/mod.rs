@@ -17,7 +17,7 @@ pub struct Ident {
 
 #[derive(Clone, Debug)]
 enum Glo {
-  Cstr,
+  Cstr(usize),
   Data,
   Func,
 }
@@ -30,7 +30,7 @@ struct Env {
 
 impl Env {
   fn resolve(&self, var: Ident) -> Result<core::Tm> {
-    assert!(var.name != "_", "inference not yet implemented");
+    assert!(var.name != "_", "term inference not yet implemented");
     match self.var.iter().position(|n| n.name == var.name) {
       Some(idx) => Ok(core::Tm::Var(core::TmVar {
         name: var.name,
@@ -40,7 +40,7 @@ impl Env {
       None => {
         if let Some((_, glo)) = self.glo.iter().find(|(x, _)| x == &var) {
           Ok(match glo {
-            Glo::Cstr => core::Tm::Cstr(var),
+            Glo::Cstr(_) => core::Tm::Cstr(var),
             Glo::Data => core::Tm::Data(var),
             Glo::Func => core::Tm::Func(var),
           })
@@ -71,90 +71,8 @@ impl Env {
   }
 }
 
-pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
-  let mut env = Env::default();
-  let prog = core::Prog {
-    decls: prog.decls.into_iter().map(|decl| surf_to_core_decl(decl, &mut env)).collect::<Result<Vec<_>>>()?,
-    // ty: surf_to_core_tm(prog.ty, &mut env)?,
-    // tm: surf_to_core_tm(prog.tm, &mut env)?,
-    span: prog.span.clone(),
-  };
-  debug_assert!(env.var.is_empty());
-  Ok(prog)
-}
-
-fn surf_to_core_decl(decl: surface::Decl, env: &mut Env) -> Result<core::Decl> {
-  let decl = match decl {
-    surface::Decl::Data(data) => core::Decl::Data(surf_to_core_data(data, env)?),
-    surface::Decl::Func(_) => todo!(),
-  };
-  env.var.clear();
-  Ok(decl)
-}
-
-fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
-  env.add_glo(data.ident.clone(), Glo::Data)?;
-
-  let params = surf_to_core_ctx(data.params, env)?;
-
-  let indices = env.forget_vars(|env| surf_to_core_tel(data.indices, env))?;
-
-  let set = surf_to_core_tm(data.set, &mut Env::default())?;
-
-  let cstrs = data.cstrs.into_iter().map(|cstr| surf_to_core_cstr(cstr, env)).collect::<Result<Vec<_>>>()?;
-
-  Ok(core::Data {
-    ident: data.ident,
-    params,
-    indices,
-    set,
-    cstrs,
-    span: data.span,
-  })
-}
-
-fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
-  let (args, params) = env.forget_vars(|env| {
-    (
-      surf_to_core_tel(cstr.args, env),
-      cstr.params.into_iter().map(|tm| surf_to_core_tm(tm, env)).collect::<Result<Vec<_>>>(),
-    )
-  });
-
-  env.add_glo(cstr.ident.clone(), Glo::Cstr)?;
-
-  Ok(core::Cstr {
-    ident: cstr.ident,
-    args: args?,
-    params: params?,
-    span: cstr.span,
-  })
-}
-
-fn surf_to_core_tel(ctx: surface::Ctx, env: &mut Env) -> Result<core::Tel> {
-  let (binds, tms) = surf_to_core_binds(ctx.binds, env)?;
-  Ok(core::Tel { binds, tms, span: ctx.span })
-}
-
-fn surf_to_core_ctx(ctx: surface::Ctx, env: &mut Env) -> Result<core::Ctx> {
-  let (binds, tms) = surf_to_core_binds(ctx.binds, env)?;
-  Ok(core::Ctx { binds, tms, span: ctx.span })
-}
-
-fn surf_to_core_binds(binds: Vec<(Ident, surface::Tm)>, env: &mut Env) -> Result<(Vec<Ident>, Vec<core::Tm>)> {
-  Ok(
-    binds
-      .into_iter()
-      .map(|(x, tm)| {
-        let tm = surf_to_core_tm(tm, env)?;
-        env.add_var(x.clone());
-        Ok((x, tm))
-      })
-      .collect::<Result<Vec<_>>>()?
-      .into_iter()
-      .unzip(),
-  )
-}
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Terms
 
 fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
   Ok(match tm {
@@ -188,6 +106,109 @@ fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
     surface::Tm::Brc(tm) => surf_to_core_tm(*tm, env)?,
   })
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Contexts
+
+fn surf_to_core_tel(ctx: surface::Ctx, env: &mut Env) -> Result<core::Tel> {
+  let (binds, tms) = surf_to_core_binds(ctx.binds, env)?;
+  Ok(core::Tel { binds, tms, span: ctx.span })
+}
+
+fn surf_to_core_ctx(ctx: surface::Ctx, env: &mut Env) -> Result<core::Ctx> {
+  let (binds, tms) = surf_to_core_binds(ctx.binds, env)?;
+  Ok(core::Ctx { binds, tms, span: ctx.span })
+}
+
+fn surf_to_core_binds(binds: Vec<(Ident, surface::Tm)>, env: &mut Env) -> Result<(Vec<Ident>, Vec<core::Tm>)> {
+  Ok(
+    binds
+      .into_iter()
+      .map(|(x, tm)| {
+        let tm = surf_to_core_tm(tm, env)?;
+        env.add_var(x.clone());
+        Ok((x, tm))
+      })
+      .collect::<Result<Vec<_>>>()?
+      .into_iter()
+      .unzip(),
+  )
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Functions
+
+fn surf_to_core_func(func: surface::Func, env: &mut Env) -> Result<core::Func> {
+  todo!()
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Data Types
+
+fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
+  env.add_glo(data.ident.clone(), Glo::Data)?;
+
+  let params = surf_to_core_ctx(data.params, env)?;
+
+  let indices = env.forget_vars(|env| surf_to_core_tel(data.indices, env))?;
+
+  let set = surf_to_core_tm(data.set, &mut Env::default())?;
+
+  let cstrs = data.cstrs.into_iter().map(|cstr| surf_to_core_cstr(cstr, env)).collect::<Result<Vec<_>>>()?;
+
+  Ok(core::Data {
+    ident: data.ident,
+    params,
+    indices,
+    set,
+    cstrs,
+    span: data.span,
+  })
+}
+
+fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
+  let arity = cstr.args.binds.len();
+  let (args, params) = env.forget_vars(|env| {
+    (
+      surf_to_core_tel(cstr.args, env),
+      cstr.params.into_iter().map(|tm| surf_to_core_tm(tm, env)).collect::<Result<Vec<_>>>(),
+    )
+  });
+
+  env.add_glo(cstr.ident.clone(), Glo::Cstr(arity))?;
+
+  Ok(core::Cstr {
+    ident: cstr.ident,
+    args: args?,
+    params: params?,
+    span: cstr.span,
+  })
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Programs
+
+fn surf_to_core_decl(decl: surface::Decl, env: &mut Env) -> Result<core::Decl> {
+  let decl = match decl {
+    surface::Decl::Data(data) => core::Decl::Data(surf_to_core_data(data, env)?),
+    surface::Decl::Func(_) => todo!(),
+  };
+  env.var.clear();
+  Ok(decl)
+}
+
+pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
+  let mut env = Env::default();
+  let prog = core::Prog {
+    decls: prog.decls.into_iter().map(|decl| surf_to_core_decl(decl, &mut env)).collect::<Result<Vec<_>>>()?,
+    span: prog.span.clone(),
+  };
+  debug_assert!(env.var.is_empty());
+  Ok(prog)
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Trait Impls
 
 impl PartialEq for Ident {
   fn eq(&self, other: &Self) -> bool {

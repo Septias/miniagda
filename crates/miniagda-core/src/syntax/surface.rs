@@ -4,6 +4,9 @@ use crate::diagnostics::span::Span;
 
 use super::Ident;
 
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Terms
+
 #[derive(Clone, Debug)]
 pub struct TmApp {
   pub left: Box<Tm>,
@@ -43,11 +46,17 @@ pub enum Tm {
   Brc(Box<Tm>),
 }
 
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Contexts
+
 #[derive(Clone, Debug)]
 pub struct Ctx {
   pub binds: Vec<(Ident, Tm)>,
   pub span: Span,
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Data Types
 
 #[derive(Clone, Debug)]
 pub struct Cstr {
@@ -66,6 +75,10 @@ pub struct Data {
   pub cstrs: Vec<Cstr>,
   pub span: Span,
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Functions
+
 #[derive(Clone, Debug)]
 pub struct PatCst {
   pub cstr: Ident,
@@ -117,6 +130,9 @@ pub struct Func {
   pub span: Span,
 }
 
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Programs
+
 #[derive(Clone, Debug)]
 pub enum Decl {
   Data(Data),
@@ -126,10 +142,11 @@ pub enum Decl {
 #[derive(Clone, Debug)]
 pub struct Prog {
   pub decls: Vec<Decl>,
-  // pub tm: Tm,
-  // pub ty: Tm,
   pub span: Span,
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Trait Impls
 
 impl Display for Tm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -152,35 +169,6 @@ impl Display for Ctx {
       f,
       "{}",
       self.binds.iter().map(|(x, tm)| format!("({} : {})", x.name, tm)).collect::<Vec<String>>().join(" ")
-    )
-  }
-}
-
-impl Display for Cstr {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(
-      f,
-      "{} : {}{}{}",
-      self.ident,
-      self.args,
-      if self.args.binds.is_empty() { " " } else { " → " },
-      self.params.iter().map(|tm| format!("{tm}")).collect::<Vec<String>>().join(" ")
-    )
-  }
-}
-
-impl Display for Data {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(
-      f,
-      "data {}{}{} : {}{}{} where\n{}",
-      self.ident,
-      if self.params.binds.is_empty() { "" } else { " " },
-      self.params,
-      self.indices,
-      if self.indices.binds.is_empty() { "" } else { " → " },
-      self.set,
-      self.cstrs.iter().map(|cstr| format!("  {cstr}")).collect::<Vec<String>>().join("\n")
     )
   }
 }
@@ -232,6 +220,35 @@ impl Display for Func {
       self.ident,
       self.ty,
       self.cls.iter().map(|cls| format!("{cls}")).collect::<Vec<String>>().join("\n")
+    )
+  }
+}
+
+impl Display for Cstr {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{} : {}{}{}",
+      self.ident,
+      self.args,
+      if self.args.binds.is_empty() { " " } else { " → " },
+      self.params.iter().map(|tm| format!("{tm}")).collect::<Vec<String>>().join(" ")
+    )
+  }
+}
+
+impl Display for Data {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "data {}{}{} : {}{}{} where\n{}",
+      self.ident,
+      if self.params.binds.is_empty() { "" } else { " " },
+      self.params,
+      self.indices,
+      if self.indices.binds.is_empty() { "" } else { " → " },
+      self.set,
+      self.cstrs.iter().map(|cstr| format!("  {cstr}")).collect::<Vec<String>>().join("\n")
     )
   }
 }

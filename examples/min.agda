@@ -1,5 +1,8 @@
-data Empty : Set where
+data Pair (A : Set) (B : Set) : Set where
+  pair : A → B → Pair A B
 
+proj1 : (A : Set) → (B : Set) → Pair A B → A
+proj1 _ _ (pair a b) = a
 
-data T : Set where
-  tt : T
+proj2 : (A : Set) → (B : Set) → Pair A B → A
+proj2 _ _ (pair a b) = a 

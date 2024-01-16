@@ -176,6 +176,10 @@ pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut
     if waiting {
       if drop > 0 || started_new_item {
         toks.push(Spanned::new(Braced::End, span_end.clone()));
+        // fix for empty block in the middle
+        if let  [Spanned { val: box Braced::Begin, .. }, Spanned { val: box Braced::Item, .. }, Spanned { val: box Braced::End, .. }] = toks[toks.len() - 3..] {
+          toks.push(Spanned::new(Braced::Item, span_end.clone()));
+        }
       } else {
         toks.push(Spanned::new(Braced::Item, span_end.clone()));
         indent_stack.push(span_col);
@@ -198,6 +202,11 @@ pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut
     end: spanned.src.len(),
   };
   for _ in indent_stack {
+    toks.push(Spanned::new(Braced::End, span_end.clone()));
+  }
+
+  // fix empty block at the end of file
+  if let  [Spanned { val: box Braced::Begin, .. }, Spanned { val: box Braced::End, .. }] = toks[toks.len() - 2..] {
     toks.push(Spanned::new(Braced::End, span_end.clone()));
   }
 

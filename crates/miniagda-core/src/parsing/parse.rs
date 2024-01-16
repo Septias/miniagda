@@ -15,7 +15,9 @@ peg::parser! {
         }
     }
 
-    #[cache_left_rec]
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    // Terms
+
     rule tm() -> Tm 
       = start:position!() ctx:ctx1() [Tok(Arrow)] codom:tm() end:position!() {
         ctx_to_all(&ctx.binds, codom, (file, (start, end)))
@@ -49,7 +51,9 @@ peg::parser! {
       }
     }
 
-    #[cache_left_rec]
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    // Contexts
+
     rule bind() -> (Ident, Tm)
       = [Tok(ParenL)] ident:id() [Tok(Colon)] tm:tm() [Tok(ParenR)] { (ident, tm) }
       / [Tok(Arrow)]? pos:position!() tm:tm_no_fn() &[Tok(Arrow)] {
@@ -61,11 +65,45 @@ peg::parser! {
         Ctx { binds, span: Span { file: file.to_string(), start, end } }
         }
 
-    #[cache_left_rec]
     rule ctx1() -> Ctx
       = start:position!() [Tok(All)]? binds:bind()+ end:position!() {
         Ctx { binds, span: Span { file: file.to_string(), start, end } }
       }
+
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    // Functions
+
+
+    rule pat() -> Pat = precedence!{
+      start:position!() [Tok(ParenL)] [Tok(ParenR)] end:position!()  { Pat::Abs(Span { file: file.to_string(), start, end }) }
+      [Tok(ParenL)] pat:pat() [Tok(ParenR)] { Pat::Brc(Box::new(pat)) }
+      [Tok(BraceL)] _:id() [Tok(Equals)] pat:pat() [Tok(BraceR)] { Pat::Brc(Box::new(pat)) }
+      --
+      start:position!() ident:id() pats:pat()+ end:position!() {
+          Pat::Cst(PatCst { cstr: ident, pats, span: Span { file: file.to_string(), start, end } })
+      }
+      start:position!() [Tok(Dot)] tm:tm() end:position!() {
+        Pat::Dot(PatDot { tm, span: Span { file: file.to_string(), start, end } })
+      }
+      ident:id() { Pat::Var(ident) } // might be Pat::Cst -- check in surface_to_core
+    }
+      
+    rule cls() -> Cls
+      = [Item] start:position!() ident:id() pats:pat()* [Tok(Equals)] [Begin] [Item] tm:tm() [End] end:position!() {
+        Cls::Cls(ClsClause { func: ident, pats, rhs: tm, span: Span { file: file.to_string(), start, end } })
+      }
+      / [Item] start:position!() ident:id() pats:pat()* [Tok(BraceL)] [Tok(BraceR)] end:position!() {
+        Cls::Abs(ClsAbsurd { func: ident, pats, span: Span { file: file.to_string(), start, end } })
+      }
+        
+    rule func() -> Func
+        = [Item] start:position!() ident:id() [Tok(Colon)] ty:tm() cls:cls()+ end:position!() {
+           Func { ident, ty, cls, span: Span { file: file.to_string(), start, end } }
+        }
+
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    // Data Types
+
 
     rule cstr_rhs() -> (Ctx, Vec<Tm>)
       = ctx:ctx1() [Tok(Arrow)] tm:tm_no_fn() {
@@ -91,37 +129,12 @@ peg::parser! {
     rule data() -> surface::Data
       = [Item]  start:position!() [Tok(Data)] ident:id() params:ctx() [Tok(Colon)] ial:indices_and_level() [Tok(Where)]
         [Begin] cstrs:cstr(&ident)* [Item]? [End] end:position!() {
-          // TODO: emptytype
           surface::Data { ident, params, indices: ial.0, set: ial.1, cstrs, span: Span { file: file.to_string(), start, end } }
       }
+
     
-        
-    rule pat() -> Pat = precedence!{
-      start:position!() [Tok(ParenL)] [Tok(ParenR)] end:position!()  { Pat::Abs(Span { file: file.to_string(), start, end }) }
-      [Tok(ParenL)] pat:pat() [Tok(ParenR)] { Pat::Brc(Box::new(pat)) }
-      [Tok(BraceL)] _:id() [Tok(Equals)] pat:pat() [Tok(BraceR)] { Pat::Brc(Box::new(pat)) }
-      --
-      start:position!() ident:id() pats:pat()+ end:position!() {
-          Pat::Cst(PatCst { cstr: ident, pats, span: Span { file: file.to_string(), start, end } })
-      }
-      start:position!() [Tok(Dot)] tm:tm() end:position!() {
-        Pat::Dot(PatDot { tm, span: Span { file: file.to_string(), start, end } })
-      }
-      ident:id() { Pat::Var(ident) } // might be Pat::Cst -- check in surface_to_core
-    }
-      
-    rule cls() -> Cls
-      = [Item] start:position!() ident:id() pats:pat()* [Tok(Equals)] tm:tm() end:position!() {
-        Cls::Cls(ClsClause { func: ident, pats, rhs: tm, span: Span { file: file.to_string(), start, end } })
-      }
-      / [Item] start:position!() ident:id() pats:pat()* end:position!() {
-        Cls::Abs(ClsAbsurd { func: ident, pats, span: Span { file: file.to_string(), start, end } })
-      }
-        
-    rule func() -> Func
-      = [Item] start:position!() ident:id() [Tok(Colon)] ty:tm() cls:cls()+ end:position!() {
-        Func { ident, ty, cls, span: Span { file: file.to_string(), start, end } }
-      }
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    // Programs
         
     rule decl() -> Decl
       = data:data() { Decl::Data(data) }
@@ -142,7 +155,8 @@ fn ctx_to_all(binds: &[(Ident, Tm)], codom: Tm, (file, (start, end)): (&str, (us
   let codom = if binds.len() == 1 {
     codom
   } else {
-    ctx_to_all(&binds[1..], codom, (file, (binds[1..][1].0.span().start, end)))
+    //TODO: ?
+    ctx_to_all(&binds[1..], codom, (file, (binds[1..][0].0.span().start, end)))
   };
 
   Tm::All(TmAll {

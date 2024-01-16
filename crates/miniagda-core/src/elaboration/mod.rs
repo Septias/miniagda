@@ -3,14 +3,14 @@ use crate::{
     error::{ElabErr, Error},
     span::Spanned,
   },
-  elaboration::{data::elab_decl, eval::eval},
-  syntax::core::Prog,
+  elaboration::eval::eval,
+  syntax::core::{Prog, Decl},
   trace,
 };
 
 use crate::syntax::core::{Lvl, Set, Tm, TmAbs, TmAll, TmApp, Val, ValAbs, ValAll, ValApp, ValVar};
 
-use self::state::State;
+use self::{state::State, data::elab_data};
 use crate::diagnostics::Result;
 
 mod data;
@@ -18,19 +18,9 @@ mod eval;
 mod func;
 mod state;
 
-pub fn elab(prog: Prog) -> Result<()> {
-  let mut state = State::default();
-  elab_prog(prog, &mut state)
-}
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Terms
 
-pub fn elab_prog(prog: Prog, state: &mut State) -> Result<()> {
-  prog.decls.into_iter().map(|decl| elab_decl(decl, state)).collect::<Result<Vec<_>>>()?;
-  assert!(state.is_only_globals());
-  // let ty = elab_tm_inf(prog.ty.clone(), state)?;
-  // expected_set(&ty, None)?;
-  // elab_tm_chk(prog.tm, eval(prog.ty, &state.env), state)?;
-  Ok(())
-}
 
 pub fn elab_tm_chk(tm: Tm, ty: Val, state: &State) -> Result<()> {
   trace!("elab_tm_chk", "check that term `{}` has type `{}` (up to β-η reduction)", tm, ty);
@@ -81,6 +71,30 @@ pub fn elab_tm_inf(tm: Tm, state: &State) -> Result<Val> {
   };
   trace!("elab_tm_inf", "inferred type of `{}` to be `{}`", tm_fmt, ty);
   Ok(ty)
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Programs
+
+pub fn elab(prog: Prog) -> Result<()> {
+  let mut state = State::default();
+  elab_prog(prog, &mut state)
+}
+
+pub fn elab_prog(prog: Prog, state: &mut State) -> Result<()> {
+  prog.decls.into_iter().map(|decl| elab_decl(decl, state)).collect::<Result<Vec<_>>>()?;
+  assert!(state.is_only_globals());
+  // let ty = elab_tm_inf(prog.ty.clone(), state)?;
+  // expected_set(&ty, None)?;
+  // elab_tm_chk(prog.tm, eval(prog.ty, &state.env), state)?;
+  Ok(())
+}
+
+pub fn elab_decl(decl: Decl, state: &mut State) -> Result<()> {
+  state.forget(|state| match decl {
+    Decl::Data(data) => elab_data(data, state),
+    Decl::Func(_) => unimplemented!(),
+  })
 }
 
 fn eq(ty1: Val, ty2: Val, lvl: Lvl) -> std::result::Result<(), (Val, Val)> {

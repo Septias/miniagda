@@ -12,13 +12,11 @@ use crate::syntax::{
   Ident,
 };
 
-pub fn elab_decl(decl: Decl, state: &mut State) -> Result<()> {
-  state.forget(|state| match decl {
-    Decl::Data(data) => elab_data(data, state),
-  })
-}
+// -----------------------------------------------------------------------------------------------------------------------------------
+// Data Types
 
-fn elab_data(data: Data, state: &mut State) -> Result<()> {
+
+pub fn elab_data(data: Data, state: &mut State) -> Result<()> {
   let data_clone = data.clone();
 
   let level = match data.set {

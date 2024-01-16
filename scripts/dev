@@ -1,2 +1,11 @@
 #!/usr/bin/env bash
+
+# watches a gives the source code for changes and recompiles when changed
+# watches an agda file for changes and tries to type check
+
+# example usage:
+#   ./scipts/dev path/to/file.agda
+
+# important: run from root of repository
+
 cargo watch -x "run --bin miniagda-watch -- $1" --ignore examples,README.md,.gitignore 
