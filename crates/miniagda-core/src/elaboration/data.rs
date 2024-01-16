@@ -8,7 +8,7 @@ use crate::diagnostics::Result;
 use crate::elaboration::elab_tm_chk;
 use crate::syntax::core::Env;
 use crate::syntax::{
-  core::{Cstr, Ctx, Data, Decl, Tel, Tm, TmAll, TmApp, Set, TmVar, Val},
+  core::{Cstr, Ctx, Data, Tel, Tm, TmAll, TmApp, Set, TmVar, Val},
   Ident,
 };
 

@@ -138,7 +138,7 @@ fn surf_to_core_binds(binds: Vec<(Ident, surface::Tm)>, env: &mut Env) -> Result
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Functions
 
-fn surf_to_core_func(func: surface::Func, env: &mut Env) -> Result<core::Func> {
+fn surf_to_core_func(_func: surface::Func, _env: &mut Env) -> Result<core::Func> {
   todo!()
 }
 
