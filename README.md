@@ -22,8 +22,8 @@ crates/             -- rust code
 ├─ miniagda-core/     -- the actual language implementation
 └─ miniagda-watch/    -- standalone binary with tui to actively work on agda file
 examples/           -- example agda files that can be elaborated using miniagda
-scripts/            -- development and installation scripts
 materials/          -- presentation slides
+scripts/            -- development and installation scripts
 ```
 
 ## literature
