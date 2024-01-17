@@ -2,9 +2,9 @@ use std::path::Path;
 
 use clap::Parser;
 use env_logger::Env;
-use miniagda_core::diagnostics::error::Error;
-use miniagda_core::diagnostics::Result;
-use miniagda_core::{elaboration::elab, parsing::parse, syntax::surface_to_core};
+use miniagda::diagnostics::error::Error;
+use miniagda::diagnostics::Result;
+use miniagda::{elaboration::elab, parsing::parse, syntax::surface_to_core};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]

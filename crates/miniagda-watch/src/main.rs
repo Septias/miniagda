@@ -1,9 +1,9 @@
 use clap::Parser;
 use futures::StreamExt;
 use inotify::{Inotify, WatchMask};
-use miniagda_core::diagnostics::error::Error;
-use miniagda_core::diagnostics::Result;
-use miniagda_core::{elaboration::elab, parsing::parse, syntax::surface_to_core};
+use miniagda::diagnostics::error::Error;
+use miniagda::diagnostics::Result;
+use miniagda::{elaboration::elab, parsing::parse, syntax::surface_to_core};
 use std::io;
 use std::io::Write;
 use std::path::Path;
@@ -26,7 +26,6 @@ fn check<P: AsRef<Path>>(path: P) {
   print!("{}{}", clear::All, cursor::Goto(2, 1));
   match run(path) {
     Ok(()) => print!("{}✓{} All Done", color::Fg(color::Green), color::Fg(color::Reset)),
-// hässlich
     Err(e) => {
       let e = match e {
         Error::SurfaceToCore(e) => format!("{e}"),
