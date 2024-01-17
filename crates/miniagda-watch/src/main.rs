@@ -1,12 +1,14 @@
+#![feature(panic_info_message)]
+
 use clap::Parser;
 use futures::StreamExt;
 use inotify::{Inotify, WatchMask};
 use miniagda::diagnostics::error::Error;
 use miniagda::diagnostics::Result;
 use miniagda::{elaboration::elab, parsing::parse, syntax::surface_to_core};
-use std::io;
 use std::io::Write;
 use std::path::Path;
+use std::{io, panic};
 use termion::cursor;
 use termion::{clear, color};
 
@@ -22,11 +24,11 @@ fn run<P: AsRef<Path>>(path: P) -> Result<()> {
   elab(prog)
 }
 
-fn check<P: AsRef<Path>>(path: P) {
+fn check<P: AsRef<Path> + panic::UnwindSafe>(path: P) {
   print!("{}{}", clear::All, cursor::Goto(2, 1));
-  match run(path) {
-    Ok(()) => print!("{}✓{} All Done", color::Fg(color::Green), color::Fg(color::Reset)),
-    Err(e) => {
+  match panic::catch_unwind(|| run(path)) {
+    Ok(Ok(())) => print!("{}✓{} All Done", color::Fg(color::Green), color::Fg(color::Reset)),
+    Ok(Err(e)) => {
       let e = match e {
         Error::SurfaceToCore(e) => format!("{e}"),
         Error::Parse(e) => format!("{e}"),
@@ -35,12 +37,16 @@ fn check<P: AsRef<Path>>(path: P) {
       };
       print!("{}⨯{} {}", color::Fg(color::Red), color::Fg(color::Reset), e);
     }
-  };
+    Err(_) => {}
+  }
   io::stdout().flush().unwrap();
 }
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+  panic::set_hook(Box::new(|info| {
+    print!("{}⨯{} {}", color::Fg(color::Red), color::Fg(color::Reset), info)
+  }));
   let args = Args::parse();
   let inotify = Inotify::init().expect("error initializing inotify");
   inotify.watches().add(&args.path, WatchMask::MODIFY).expect("failed to add file watch");
