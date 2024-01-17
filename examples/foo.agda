@@ -22,6 +22,9 @@ data Sum (A : Set) (B : Set) : Set where
   left  : A → Sum A B
   right : B → Sum A B 
 
+leftor : (A : Set) (B : Set) → Sum A B → A → A
+leftor _ _ (left x) a = {!   !}
+
 data Pair (A : Set) (B : Set) : Set where
   pair : A → B → Pair A B
 

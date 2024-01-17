@@ -6,3 +6,4 @@ proj1 _ _ (pair a b) = a
 
 proj2 : (A : Set) → (B : Set) → Pair A B → B
 proj2 _ _ (pair a b) = b
+

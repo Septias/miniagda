@@ -30,8 +30,9 @@ impl Display for Error {
 pub enum SurfaceToCoreErr {
   UnboundName { name: String, span: Span },
   GlobalExists { name: String, span: Span },
-  MisnamedCls { name: Ident, cls: Ident, span: Span },
-  UnresolvedCstr { name: Ident, span: Span },
+  MisnamedCls { name: Ident, cls: Ident },
+  UnresolvedCstr { name: Ident },
+  DuplicatedPatternVariable { name: Ident },
 }
 
 impl Display for SurfaceToCoreErr {
@@ -39,8 +40,9 @@ impl Display for SurfaceToCoreErr {
     match self {
       SurfaceToCoreErr::UnboundName { name, .. } => write!(f, "could not resolve variable {}", name),
       SurfaceToCoreErr::GlobalExists { name, .. } => write!(f, "constructor or data type with name {} already exists", name),
-      SurfaceToCoreErr::MisnamedCls { name, cls, .. } => write!(f, "clause with name {} does not begin with function name {} where it is defined on", cls, name),
-      SurfaceToCoreErr::UnresolvedCstr { name, .. } => write!(f, "constructor {} was never defined and cannot be matched on", name),
+      SurfaceToCoreErr::MisnamedCls { name, cls } => write!(f, "clause with name {} does not begin with function name {} where it is defined on", cls, name),
+      SurfaceToCoreErr::UnresolvedCstr { name } => write!(f, "constructor {} was never defined and cannot be matched on", name),
+      SurfaceToCoreErr::DuplicatedPatternVariable { name } => write!(f, "found duplicated pattern variable {} in clause", name),
     }
   }
 }

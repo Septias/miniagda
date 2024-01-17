@@ -6,7 +6,10 @@ use crate::{
     error::{Error, SurfaceToCoreErr},
     span::Span,
   },
-  syntax::{core::PatCst, surface::PatId},
+  syntax::{
+    core::{PatCst, PatDot},
+    surface::PatId,
+  },
 };
 use std::{fmt::Display, hash::Hash};
 
@@ -178,7 +181,6 @@ fn surface_to_core_cls(ident: &Ident, cls: surface::Cls, env: &mut Env) -> Resul
     return Err(Error::from(SurfaceToCoreErr::MisnamedCls {
       name: ident.clone(),
       cls: func.clone(),
-      span: span.clone(),
     }));
   }
 
@@ -195,39 +197,49 @@ fn surface_to_core_cls(ident: &Ident, cls: surface::Cls, env: &mut Env) -> Resul
 }
 
 fn surf_to_core_pats(pats: Vec<surface::Pat>, env: &mut Env) -> Result<Vec<core::Pat>> {
-  enum Mixed {
-    Core(core::Pat),
-    Dot(surface::PatDot),
+  fn bring_variables_into_scope<'a>(pats: &'a [surface::Pat], env: &mut Env, in_scope: &mut Vec<&'a Ident>) -> Result<()> {
+    pats
+      .iter()
+      .map(move |pat| {
+        if let surface::Pat::Id(PatId { ident, pats, .. }) = pat {
+          if env.has_cstr(ident) {
+            bring_variables_into_scope(pats, env, in_scope)?
+          } else {
+            if !pats.is_empty() {
+              return Err(Error::from(SurfaceToCoreErr::UnresolvedCstr { name: ident.clone() }));
+            }
+            if ident.name != "_" && in_scope.contains(&ident) {
+              return Err(Error::from(SurfaceToCoreErr::DuplicatedPatternVariable { name: ident.clone() }));
+            }
+            env.add_var(ident.clone());
+            in_scope.push(ident);
+          }
+        }
+        Ok(())
+      })
+      .collect::<Result<Vec<_>>>()?;
+    Ok(())
   }
 
-  let pats = pats
+  {
+    let mut in_scope = Vec::new();
+    bring_variables_into_scope(&pats, env, &mut in_scope)?;
+  }
+
+  pats
     .into_iter()
     .map(|pat| match pat {
-      surface::Pat::Id(PatId { ident, pats, span }) => Ok(Mixed::Core(if env.has_cstr(&ident) {
+      surface::Pat::Id(PatId { ident, pats, span }) => Ok(if env.has_cstr(&ident) {
         core::Pat::Cst(PatCst {
           cstr: ident,
           pats: surf_to_core_pats(pats, env)?,
           span,
         })
       } else {
-        if !pats.is_empty() {
-          return Err(Error::from(SurfaceToCoreErr::UnresolvedCstr {
-            name: ident.clone(),
-            span: span.clone(),
-          }));
-        }
-        env.add_var(ident.clone());
+        assert!(pats.is_empty());
         core::Pat::Var(ident)
-      })),
-      surface::Pat::Dot(pat) => Ok(Mixed::Dot(pat)),
-    })
-    .collect::<Result<Vec<_>>>()?;
-
-  pats
-    .into_iter()
-    .map(|mixed| match mixed {
-      Mixed::Core(pat) => Ok(pat),
-      Mixed::Dot(surface::PatDot { tm, span }) => Ok(core::Pat::Dot(core::PatDot {
+      }),
+      surface::Pat::Dot(surface::PatDot { tm, span }) => Ok(core::Pat::Dot(core::PatDot {
         tm: surf_to_core_tm(tm, env)?,
         span,
       })),
