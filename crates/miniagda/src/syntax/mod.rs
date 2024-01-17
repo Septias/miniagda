@@ -6,8 +6,11 @@ use crate::{
     error::{Error, SurfaceToCoreErr},
     span::Span,
   },
+  syntax::{core::PatCst, surface::PatId},
 };
 use std::{fmt::Display, hash::Hash};
+
+use self::core::{ClsAbsurd, ClsClause};
 
 #[derive(Clone, Debug)]
 pub struct Ident {
@@ -17,7 +20,7 @@ pub struct Ident {
 
 #[derive(Clone, Debug)]
 enum Glo {
-  Cstr(usize),
+  Cstr,
   Data,
   Func,
 }
@@ -40,7 +43,7 @@ impl Env {
       None => {
         if let Some((_, glo)) = self.glo.iter().find(|(x, _)| x == &var) {
           Ok(match glo {
-            Glo::Cstr(_) => core::Tm::Cstr(var),
+            Glo::Cstr => core::Tm::Cstr(var),
             Glo::Data => core::Tm::Data(var),
             Glo::Func => core::Tm::Func(var),
           })
@@ -48,6 +51,14 @@ impl Env {
           Err(Error::from(SurfaceToCoreErr::UnboundName { name: var.name, span: var.span }))
         }
       }
+    }
+  }
+
+  fn has_cstr(&self, var: &Ident) -> bool {
+    if let Some((_, Glo::Cstr)) = self.glo.iter().find(|(x, _)| x == var) {
+      true
+    } else {
+      false
     }
   }
 
@@ -63,7 +74,7 @@ impl Env {
     self.var.insert(0, x);
   }
 
-  pub fn forget_vars<T>(&mut self, f: impl FnOnce(&mut Env) -> T) -> T {
+  pub fn forget<T>(&mut self, f: impl FnOnce(&mut Env) -> T) -> T {
     let len = self.var.len();
     let res = f(self);
     self.var.drain(0..(self.var.len() - len));
@@ -138,21 +149,103 @@ fn surf_to_core_binds(binds: Vec<(Ident, surface::Tm)>, env: &mut Env) -> Result
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Functions
 
-fn surf_to_core_func(_func: surface::Func, _env: &mut Env) -> Result<core::Func> {
-  todo!()
+fn surf_to_core_func(func: surface::Func, env: &mut Env) -> Result<core::Func> {
+  let ty = surf_to_core_tm(func.ty, env)?;
+
+  env.add_glo(func.ident.clone(), Glo::Func)?;
+
+  let cls = func
+    .cls
+    .into_iter()
+    .map(|cls| env.forget(|env| surface_to_core_cls(&func.ident, cls, env)))
+    .collect::<Result<Vec<core::Cls>>>()?;
+
+  Ok(core::Func {
+    ident: func.ident,
+    ty,
+    cls,
+    span: func.span,
+  })
+}
+
+fn surface_to_core_cls(ident: &Ident, cls: surface::Cls, env: &mut Env) -> Result<core::Cls> {
+  let (func, pats, span, rhs) = match cls {
+    surface::Cls::Cls(surface::ClsClause { func, pats, rhs, span }) => (func, pats, span, Some(rhs)),
+    surface::Cls::Abs(surface::ClsAbsurd { func, pats, span }) => (func, pats, span, None),
+  };
+
+  if ident != &func {
+    return Err(Error::from(SurfaceToCoreErr::MisnamedCls {
+      name: ident.clone(),
+      cls: func.clone(),
+      span: span.clone(),
+    }));
+  }
+
+  let pats = surf_to_core_pats(pats, env)?;
+  match rhs {
+    Some(rhs) => Ok(core::Cls::Cls(ClsClause {
+      func,
+      pats,
+      rhs: surf_to_core_tm(rhs, env)?,
+      span,
+    })),
+    None => Ok(core::Cls::Abs(ClsAbsurd { func, pats, span })),
+  }
+}
+
+fn surf_to_core_pats(pats: Vec<surface::Pat>, env: &mut Env) -> Result<Vec<core::Pat>> {
+  enum Mixed {
+    Core(core::Pat),
+    Dot(surface::PatDot),
+  }
+
+  let pats = pats
+    .into_iter()
+    .map(|pat| match pat {
+      surface::Pat::Id(PatId { ident, pats, span }) => Ok(Mixed::Core(if env.has_cstr(&ident) {
+        core::Pat::Cst(PatCst {
+          cstr: ident,
+          pats: surf_to_core_pats(pats, env)?,
+          span,
+        })
+      } else {
+        if !pats.is_empty() {
+          return Err(Error::from(SurfaceToCoreErr::UnresolvedCstr {
+            name: ident.clone(),
+            span: span.clone(),
+          }));
+        }
+        env.add_var(ident.clone());
+        core::Pat::Var(ident)
+      })),
+      surface::Pat::Dot(pat) => Ok(Mixed::Dot(pat)),
+    })
+    .collect::<Result<Vec<_>>>()?;
+
+  pats
+    .into_iter()
+    .map(|mixed| match mixed {
+      Mixed::Core(pat) => Ok(pat),
+      Mixed::Dot(surface::PatDot { tm, span }) => Ok(core::Pat::Dot(core::PatDot {
+        tm: surf_to_core_tm(tm, env)?,
+        span,
+      })),
+    })
+    .collect::<Result<Vec<_>>>()
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Data Types
 
 fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
-  env.add_glo(data.ident.clone(), Glo::Data)?;
-
   let params = surf_to_core_ctx(data.params, env)?;
 
-  let indices = env.forget_vars(|env| surf_to_core_tel(data.indices, env))?;
+  let indices = env.forget(|env| surf_to_core_tel(data.indices, env))?;
 
   let set = surf_to_core_tm(data.set, &mut Env::default())?;
+
+  env.add_glo(data.ident.clone(), Glo::Data)?;
 
   let cstrs = data.cstrs.into_iter().map(|cstr| surf_to_core_cstr(cstr, env)).collect::<Result<Vec<_>>>()?;
 
@@ -167,15 +260,14 @@ fn surf_to_core_data(data: surface::Data, env: &mut Env) -> Result<core::Data> {
 }
 
 fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
-  let arity = cstr.args.binds.len();
-  let (args, params) = env.forget_vars(|env| {
+  let (args, params) = env.forget(|env| {
     (
       surf_to_core_tel(cstr.args, env),
       cstr.params.into_iter().map(|tm| surf_to_core_tm(tm, env)).collect::<Result<Vec<_>>>(),
     )
   });
 
-  env.add_glo(cstr.ident.clone(), Glo::Cstr(arity))?;
+  env.add_glo(cstr.ident.clone(), Glo::Cstr)?;
 
   Ok(core::Cstr {
     ident: cstr.ident,
@@ -189,12 +281,12 @@ fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
 // Programs
 
 fn surf_to_core_decl(decl: surface::Decl, env: &mut Env) -> Result<core::Decl> {
-  let decl = match decl {
-    surface::Decl::Data(data) => core::Decl::Data(surf_to_core_data(data, env)?),
-    surface::Decl::Func(_) => todo!(),
-  };
-  env.var.clear();
-  Ok(decl)
+  Ok(env.forget::<Result<_>>(|env| {
+    Ok(match decl {
+      surface::Decl::Data(data) => core::Decl::Data(surf_to_core_data(data, env)?),
+      surface::Decl::Func(func) => core::Decl::Func(surf_to_core_func(func, env)?),
+    })
+  })?)
 }
 
 pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {

@@ -83,10 +83,7 @@ pub fn elab(prog: Prog) -> Result<()> {
 
 pub fn elab_prog(prog: Prog, state: &mut State) -> Result<()> {
   prog.decls.into_iter().map(|decl| elab_decl(decl, state)).collect::<Result<Vec<_>>>()?;
-  assert!(state.is_only_globals());
-  // let ty = elab_tm_inf(prog.ty.clone(), state)?;
-  // expected_set(&ty, None)?;
-  // elab_tm_chk(prog.tm, eval(prog.ty, &state.env), state)?;
+  assert!(state.no_locals());
   Ok(())
 }
 

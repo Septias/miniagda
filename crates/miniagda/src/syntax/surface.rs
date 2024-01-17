@@ -80,8 +80,8 @@ pub struct Data {
 // Functions
 
 #[derive(Clone, Debug)]
-pub struct PatCst {
-  pub cstr: Ident,
+pub struct PatId {
+  pub ident: Ident,
   pub pats: Vec<Pat>,
   pub span: Span,
 }
@@ -94,11 +94,8 @@ pub struct PatDot {
 
 #[derive(Clone, Debug)]
 pub enum Pat {
-  Var(Ident),
-  Cst(PatCst),
+  Id(PatId),
   Dot(PatDot),
-  Abs(Span),
-  Brc(Box<Pat>),
 }
 
 #[derive(Clone, Debug)]
@@ -176,18 +173,15 @@ impl Display for Ctx {
 impl Display for Pat {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Pat::Var(ident) => write!(f, "{ident}"),
-      Pat::Cst(PatCst { cstr, pats, .. }) => write!(f, "{} {}", cstr, pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" ")),
-      Pat::Dot(PatDot { tm, .. }) => write!(f, ".{tm}"),
-      Pat::Abs(_) => write!(f, "()"),
-      Pat::Brc(pat) => write!(f, "({pat})"),
+      Pat::Id(PatId { ident: cstr, pats, .. }) => if !pats.is_empty() {write!(f, "({} {})", cstr, pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" ")) } else { write!(f, "{}", cstr) } ,
+      Pat::Dot(PatDot { tm, .. }) => write!(f, ".({tm})"),
     }
   }
 }
 
 impl Display for ClsAbsurd {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{} {}", self.func, self.pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" "),)
+    write!(f, "{} {} ()", self.func, self.pats.iter().map(|pat| format!("{pat}")).collect::<Vec<String>>().join(" "),)
   }
 }
 

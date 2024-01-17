@@ -1,6 +1,6 @@
 use super::lex::{Braced, SpannedToks, Token};
 use crate::diagnostics::span::{Span, Spanned};
-use crate::syntax::surface::{self, Cls, ClsAbsurd, ClsClause, Cstr, Ctx, Decl, Func, Pat, PatCst, PatDot, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
+use crate::syntax::surface::{self, Cls, ClsAbsurd, ClsClause, Cstr, Ctx, Decl, Func, Pat, PatId, PatDot, Prog, Tm, TmAbs, TmAll, TmApp, TmSet};
 use crate::syntax::Ident;
 
 peg::parser! {
@@ -74,19 +74,15 @@ peg::parser! {
     // Functions
 
 
-    rule pat() -> Pat = precedence!{
-      start:position!() [Tok(ParenL)] [Tok(ParenR)] end:position!()  { Pat::Abs(Span { file: file.to_string(), start, end }) }
-      [Tok(ParenL)] pat:pat() [Tok(ParenR)] { Pat::Brc(Box::new(pat)) }
-      [Tok(BraceL)] _:id() [Tok(Equals)] pat:pat() [Tok(BraceR)] { Pat::Brc(Box::new(pat)) }
-      --
-      start:position!() ident:id() pats:pat()+ end:position!() {
-          Pat::Cst(PatCst { cstr: ident, pats, span: Span { file: file.to_string(), start, end } })
+    rule pat() -> Pat 
+      = start:position!() ident:id() end:position!() {
+          Pat::Id(PatId { ident: ident, pats: vec![], span: Span { file: file.to_string(), start, end } })
       }
-      start:position!() [Tok(Dot)] tm:tm() end:position!() {
+      / start:position!() [Tok(ParenL)] ident:id() pats:pat()+ [Tok(ParenR)] end:position!() { Pat::Id(PatId { ident: ident, pats: pats, span: Span { file: file.to_string(), start, end } }) }
+      / start:position!() [Tok(Dot)] [Tok(ParenL)] tm:tm() [Tok(ParenR)] end:position!() {
         Pat::Dot(PatDot { tm, span: Span { file: file.to_string(), start, end } })
       }
-      ident:id() { Pat::Var(ident) } // might be Pat::Cst -- check in surface_to_core
-    }
+      // ident:id() { Pat::Var(ident) } // might be Pat::Cst -- check in surface_to_core
       
     rule cls() -> Cls
       = [Item] start:position!() ident:id() pats:pat()* [Tok(Equals)] [Begin] [Item] tm:tm() [End] end:position!() {

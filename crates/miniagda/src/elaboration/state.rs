@@ -86,7 +86,7 @@ impl State {
     self.lvl += 1;
   }
 
-  pub fn is_only_globals(&self) -> bool {
+  pub fn no_locals(&self) -> bool {
     self.env.0.is_empty() && self.types.is_empty()
   }
 }
