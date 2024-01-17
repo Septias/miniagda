@@ -8,4 +8,4 @@
 
 # important: run from root of repository
 
-cargo watch -x "run --bin miniagda-watch -- $1" --ignore examples,README.md,.gitignore 
+cargo watch -x "run --bin miniagda-watch -- $1" -w crates
