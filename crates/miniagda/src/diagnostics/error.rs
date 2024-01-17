@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use crate::syntax::{
   core::{Tm, Val},
-  surface::Cls,
   Ident,
 };
 
