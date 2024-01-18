@@ -21,7 +21,7 @@ pub fn elab_data(data: Data, state: &mut State) -> Result<()> {
 
   let level = match data.set {
     Tm::Set(Set { level, .. }) => level,
-    tm => return Err(Error::from(ElabErr::ExpectedSetData { got: tm.clone() })),
+    tm => return Err(Error::from(ElabErr::ExpectedSetData { got: tm })),
   };
 
   let name = data.ident.clone();

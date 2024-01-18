@@ -76,9 +76,9 @@ peg::parser! {
 
     rule pat() -> Pat 
       = start:position!() ident:id() end:position!() {
-          Pat::Id(PatId { ident: ident, pats: vec![], span: Span { file: file.to_string(), start, end } })
+          Pat::Id(PatId { ident, pats: vec![], span: Span { file: file.to_string(), start, end } })
       }
-      / start:position!() [Tok(ParenL)] ident:id() pats:pat()+ [Tok(ParenR)] end:position!() { Pat::Id(PatId { ident: ident, pats: pats, span: Span { file: file.to_string(), start, end } }) }
+      / start:position!() [Tok(ParenL)] ident:id() pats:pat()+ [Tok(ParenR)] end:position!() { Pat::Id(PatId { ident, pats, span: Span { file: file.to_string(), start, end } }) }
       / start:position!() [Tok(Dot)] [Tok(ParenL)] tm:tm() [Tok(ParenR)] end:position!() {
         Pat::Dot(PatDot { tm, span: Span { file: file.to_string(), start, end } })
       }

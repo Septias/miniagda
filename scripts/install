@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# installs the miniagda tui binary that comes with the language implementation
+#
+# requirements:
+#   - rust 
+#   - cargo
+#
+# example usage:
+#  curl -s -L https://raw.githubusercontent.com/Mari-W/miniagda/master/scripts/install | bash
+
+cargo install --bin miniagda --git https://github.com/Mari-W/miniagda

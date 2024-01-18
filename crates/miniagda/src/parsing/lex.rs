@@ -207,7 +207,7 @@ pub fn process_indent<T>(spanned: SpannedToks<T>, mut is_block_start: impl FnMut
 
   // fix empty block at the end of file
   if let  [Spanned { val: box Braced::Begin, .. }, Spanned { val: box Braced::End, .. }] = toks[toks.len() - 2..] {
-    toks.push(Spanned::new(Braced::End, span_end.clone()));
+    toks.push(Spanned::new(Braced::End, span_end));
   }
 
   SpannedToks { src: spanned.src, toks }

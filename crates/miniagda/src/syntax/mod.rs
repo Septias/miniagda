@@ -6,10 +6,7 @@ use crate::{
     error::{Error, SurfaceToCoreErr},
     span::Span,
   },
-  syntax::{
-    core::{PatCst, PatDot},
-    surface::PatId,
-  },
+  syntax::{core::PatCst, surface::PatId},
 };
 use std::{fmt::Display, hash::Hash};
 
@@ -58,15 +55,11 @@ impl Env {
   }
 
   fn has_cstr(&self, var: &Ident) -> bool {
-    if let Some((_, Glo::Cstr)) = self.glo.iter().find(|(x, _)| x == var) {
-      true
-    } else {
-      false
-    }
+    matches!(self.glo.iter().find(|(x, _)| x == var), Some((_, Glo::Cstr)))
   }
 
   pub fn add_glo(&mut self, x: Ident, glo: Glo) -> Result<()> {
-    if self.glo.iter().find(|(var, _)| &x == var).is_some() {
+    if self.glo.iter().any(|(var, _)| &x == var) {
       return Err(Error::from(SurfaceToCoreErr::GlobalExists { name: x.name, span: x.span }));
     }
     self.glo.push((x, glo));
@@ -94,7 +87,7 @@ fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
     surface::Tm::App(surface::TmApp { left, right, span }) => core::Tm::App(core::TmApp {
       left: Box::new(surf_to_core_tm(*left, env)?),
       right: Box::new(surf_to_core_tm(*right, env)?),
-      span: span.clone(),
+      span,
     }),
     surface::Tm::Abs(surface::TmAbs { ident, ty, body, span }) => {
       let mut n_env: Env = env.clone();
@@ -103,7 +96,7 @@ fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
         ident,
         ty: Box::new(surf_to_core_tm(*ty, env)?),
         body: Box::new(surf_to_core_tm(*body, &mut n_env)?),
-        span: span.clone(),
+        span,
       })
     }
     surface::Tm::All(surface::TmAll { ident, dom, codom, span }) => {
@@ -113,7 +106,7 @@ fn surf_to_core_tm(tm: surface::Tm, env: &mut Env) -> Result<core::Tm> {
         ident,
         dom: Box::new(surf_to_core_tm(*dom, env)?),
         codom: Box::new(surf_to_core_tm(*codom, &mut n_env)?),
-        span: span.clone(),
+        span,
       })
     }
     surface::Tm::Set(surface::TmSet { level, span }) => core::Tm::Set(core::Set { level, span }),
@@ -178,10 +171,7 @@ fn surface_to_core_cls(ident: &Ident, cls: surface::Cls, env: &mut Env) -> Resul
   };
 
   if ident != &func {
-    return Err(Error::from(SurfaceToCoreErr::MisnamedCls {
-      name: ident.clone(),
-      cls: func.clone(),
-    }));
+    return Err(Error::from(SurfaceToCoreErr::MisnamedCls { name: ident.clone(), cls: func }));
   }
 
   let pats = surf_to_core_pats(pats, env)?;
@@ -293,19 +283,19 @@ fn surf_to_core_cstr(cstr: surface::Cstr, env: &mut Env) -> Result<core::Cstr> {
 // Programs
 
 fn surf_to_core_decl(decl: surface::Decl, env: &mut Env) -> Result<core::Decl> {
-  Ok(env.forget::<Result<_>>(|env| {
+  env.forget::<Result<_>>(|env| {
     Ok(match decl {
       surface::Decl::Data(data) => core::Decl::Data(surf_to_core_data(data, env)?),
       surface::Decl::Func(func) => core::Decl::Func(surf_to_core_func(func, env)?),
     })
-  })?)
+  })
 }
 
 pub fn surface_to_core(prog: surface::Prog) -> Result<core::Prog> {
   let mut env = Env::default();
   let prog = core::Prog {
     decls: prog.decls.into_iter().map(|decl| surf_to_core_decl(decl, &mut env)).collect::<Result<Vec<_>>>()?,
-    span: prog.span.clone(),
+    span: prog.span,
   };
   debug_assert!(env.var.is_empty());
   Ok(prog)

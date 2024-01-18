@@ -19,7 +19,7 @@ rust implementation for a subset of the [agda](https://github.com/agda/agda) pro
 ```
 crates/             -- rust code
 ├─ miniagda/          -- the actual language implementation
-├─ miniagda-bin/      -- standalone binary elaborate an agda file once
+├─ miniagda-bin/      -- standalone binary elaborate an agda file once with debugging options
 └─ miniagda-watch/    -- standalone binary with tui to actively work on an agda file
 examples/           -- example agda files that can be elaborated using miniagda
 materials/          -- presentation slides

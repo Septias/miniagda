@@ -12,3 +12,7 @@ termion = "*"
 inotify = "*"
 tokio = { version = "*", features = ["full"] }
 futures = "*"
+
+[[bin]]
+name = "miniagda"
+path = "src/main.rs"
